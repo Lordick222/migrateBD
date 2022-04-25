@@ -132,7 +132,7 @@
                 <version>3.2.1</version>
                 <configuration>
                     <to>
-                        <image>migarateBd</image>
+                        <image>migarate-bd</image>
                     </to>
                 </configuration>
             </plugin>
