@@ -1,0 +1,15 @@
+version: "3.2"
+services:
+
+  mssql:
+    image: 'mcr.microsoft.com/mssql/server'
+    ports:
+      - '1433:1433'
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: mypass1.
+      MSSQL_DB: TestDb
+      MSSQL_USER: asmws
+      MSSQL_PASSWORD: mypass1.
+    volumes:
+      - './drive:/var/opt/mssql'
