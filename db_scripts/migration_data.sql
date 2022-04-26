@@ -1,10 +1,10 @@
--- start 
-SELECT ID, ORDER_ID, LOADING_DATE, UNLOADING_DATE, RATE, TRAVEL_TIME, DISTANCE, CUSTOMER_ID, CUSTOMER_BINDING, KONIKI, MKAD, GUARANTEED_ORDER, REGION_START_ID, REGION_FINISH_ID, LAT_START, LON_START, LAT_FINISH, LON_FINISH, LOADING_TIME, UNLOADING_TIME, PLACE_START_ID, PLACE_FINISH_ID, FEDERAL_DISTRICT_START_ID
-FROM test_tms_LabIT.dbo.DISTR_ORDER;
-INSERT INTO distr_order
-(id, order_id, loading_date, unloading_date, rate, travel_time, distance, customer_id, customer_binding, koniki, mkad, guaranteed_order, region_start_id, region_finish_id, lat_start, lon_start, lat_finish, lon_finish, loading_time, unloading_time, place_start_id, place_finish_id, federal_district_start_id)
-VALUES(0, ?, '', '', 0, 0, 0, ?, 0, 0, 0, 0, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?);
--- end
+-- -- start
+-- SELECT ID, ORDER_ID, LOADING_DATE, UNLOADING_DATE, RATE, TRAVEL_TIME, DISTANCE, CUSTOMER_ID, CUSTOMER_BINDING, KONIKI, MKAD, GUARANTEED_ORDER, REGION_START_ID, REGION_FINISH_ID, LAT_START, LON_START, LAT_FINISH, LON_FINISH, LOADING_TIME, UNLOADING_TIME, PLACE_START_ID, PLACE_FINISH_ID, FEDERAL_DISTRICT_START_ID
+-- FROM test_tms_LabIT.dbo.DISTR_ORDER;
+-- INSERT INTO distr_order
+-- (id, order_id, loading_date, unloading_date, rate, travel_time, distance, customer_id, customer_binding, koniki, mkad, guaranteed_order, region_start_id, region_finish_id, lat_start, lon_start, lat_finish, lon_finish, loading_time, unloading_time, place_start_id, place_finish_id, federal_district_start_id)
+-- VALUES(0, ?, '', '', 0, 0, 0, ?, 0, 0, 0, 0, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?);
+-- -- end
 
 -- start 
 SELECT ID, VEHICLE_ID, ORDER_ID, DATE_S, DATE_F, TIME_DIFF, LAT_S, LON_S, LAT_F, LON_F, FLAG
@@ -124,7 +124,7 @@ INSERT INTO distr_vehicle_and_order_vehicle_task
 VALUES(0, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, 0, '', 0, ?, '', 0, 0, '', '', ?, 0, '', 0, ?, ?);
 -- end
 
--- start 
+-- start
 SELECT ID, VEHICLE_ID, DATE_S, DATE_F, TIME_DIFF, LAT_S, LON_S, LAT_F, LON_F, FLAG
 FROM test_tms_LabIT.dbo.DISTR_VEHICLE_FREE_INTERVAL;
 INSERT INTO distr_vehicle_free_integererval
