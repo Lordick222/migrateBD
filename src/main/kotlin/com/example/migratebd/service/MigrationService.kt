@@ -26,7 +26,7 @@ class MigrationService(
         val count = msqlJdbcTemplate.queryForObject("select count(1) FROM $tableName;", Int::class.java) ?: 0
         if (count <= 1000) {
             val mutableMap = select(selectSql)
-            insert(selectSql, mutableMap)
+            insert(insertSql, mutableMap)
         } else {
             var offset = 0;
             while (offset <= count ) {
@@ -40,14 +40,14 @@ class MigrationService(
         }
     }
 
-    private fun insert(insertSql: String, rows: MutableMap<String, Any>) {
-        val values = rows.map { it.value }
-        postgresJdbcTemplate.update(insertSql, values)
+    private fun insert(insertSql: String, rows: MutableList<MutableMap<String, Any>>) {
+        val values = rows.map { it.values }
+        values.forEach { postgresJdbcTemplate.update(insertSql, arrayListOf(it)) }
     }
 
-    fun select(selectSql: String, limit: Int = 1000, offset: Int = 0): MutableMap<String, Any> {
+    fun select(selectSql: String, limit: Int = 1000, offset: Int = 0): MutableList<MutableMap<String, Any>> {
         val selectPagination = selectSql.replace(";", "").plus(" limit ? offset ?;")
-        return msqlJdbcTemplate.queryForMap(selectPagination, limit, offset)
+        return msqlJdbcTemplate.queryForList(selectPagination, limit, offset)
     }
 
     private suspend fun migrateAdditionalTables() {
