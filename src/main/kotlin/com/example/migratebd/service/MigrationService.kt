@@ -9,7 +9,6 @@ import org.aspectj.util.FileUtil
 import org.intellij.lang.annotations.Language
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import java.io.File
 import java.util.*
@@ -98,18 +97,18 @@ class MigrationService(
                 } ?: it.value
             }
         }
-        logger.info { "insert values, count: [${values.size}]" }
+//        logger.info { "insert values, count: [${values.size}]" }
         var success = true
-        values.forEach {
-            val value = it.toTypedArray()
+        for (value in values) {
             try {
-                postgresJdbcTemplate.update(insertSql, *value)
+                postgresJdbcTemplate.update(insertSql, *value.toTypedArray())
             } catch (e: Exception) {
                 success = false
-                logger.error(e) { "Insert failure, sql:[$insertSql], value:[$it]" }
+                logger.error(e) { "Insert failure, sql:[$insertSql], value:[$value]" }
+                break
             }
         }
-        logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
+//        logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
     }
 
     fun select(selectSql: String, limit: Int = 1000, offset: Int = 0): MutableList<MutableMap<String, Any>> {
@@ -141,12 +140,25 @@ class MigrationService(
             }
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
+            var fildsToInsert = selectString.substringAfter("SELECT").substringBefore("FROM")
+            var countFieldToInsert = fildsToInsert.split(",").size
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
             insertString = "INSERT$insertString;"
             symbols = StringUtils.removeIgnoreCase(symbols, insertString);
+            val delSubstring = insertString.substringAfter("(").substringBefore(")")
+            insertString = StringUtils.replace(insertString, delSubstring, fildsToInsert)
+            var questionCaseString = insertString.substringAfter("VALUES(").substringBefore(")")
+            insertString = StringUtils.replace(insertString, questionCaseString, getStringQuestion(countFieldToInsert))
+            symbols = StringUtils.removeIgnoreCase(symbols, insertString);
             result.add(Pair(selectString, insertString))
         }
         return result
+    }
+
+    fun getStringQuestion(count: Int): String {
+        val list = mutableListOf<String>()
+        repeat(count) { list.add("?") }
+        return list.joinToString()
     }
 }
