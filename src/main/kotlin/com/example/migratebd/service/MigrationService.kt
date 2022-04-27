@@ -1,5 +1,6 @@
 package com.example.migratebd.service
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import mu.KLogging
@@ -8,6 +9,7 @@ import org.aspectj.util.FileUtil
 import org.intellij.lang.annotations.Language
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import java.io.File
 import java.util.*
@@ -31,14 +33,14 @@ class MigrationService(
 
     suspend fun migrationBigTables() = coroutineScope {
         logger.info { "migration big tables started" }
-        async {
+        async(Dispatchers.IO) {
             selectInsert(
                 "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;",
                 "INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);",
                 test = true
             )
         }
-        async {
+        async(Dispatchers.IO) {
             selectInsert(
                 "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;",
                 "INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error) VALUES(?, ?, ?, ?, ?);",
