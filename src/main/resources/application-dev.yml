@@ -1,0 +1,18 @@
+server.port: 9091
+spring:
+  datasource:
+    postgres:
+      url: jdbc:postgresql://localhost:5432/tms
+      username: postgres
+      password: example
+      driverClassName: org.postgresql.Driver
+    msql:
+      url: jdbc:sqlserver://10.4.1.11:1433;database=test_tms_LabIT
+      username: test_tms_LabIT
+      password: test_tms_LabIT
+      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+#    msql:
+#      url: jdbc:sqlserver://localhost:1433;database=TestDb;encrypt=false;trustServerCertificate=true
+#      username: asmws
+#      password: mypass1.
+#      driverClassName: com.mysql.jdbc.Driver

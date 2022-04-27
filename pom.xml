@@ -16,7 +16,7 @@
     <properties>
         <java.version>11</java.version>
         <kotlin.version>1.6.21</kotlin.version>
-        <kotlinx-coroutines.version>1.2.1</kotlinx-coroutines.version>
+        <kotlinx-coroutines.version>1.6.1</kotlinx-coroutines.version>
     </properties>
     <dependencies>
         <dependency>
@@ -46,6 +46,16 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core-jvm</artifactId>
+            <version>${kotlinx-coroutines.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-reactive</artifactId>
+            <version>${kotlinx-coroutines.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-reactor</artifactId>
             <version>${kotlinx-coroutines.version}</version>
         </dependency>
@@ -59,8 +69,8 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -73,6 +83,14 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!--Logging-->
+        <dependency>
+            <groupId>io.github.microutils</groupId>
+            <artifactId>kotlin-logging</artifactId>
+            <version>1.12.5</version>
+        </dependency>
+        <!--Logger-->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
