@@ -3,10 +3,13 @@ package com.example.migratebd.service
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import mu.KLogging
+import org.apache.commons.lang3.StringUtils
+import org.aspectj.util.FileUtil
 import org.intellij.lang.annotations.Language
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
+import java.io.File
 import java.util.*
 
 
@@ -101,7 +104,7 @@ class MigrationService(
                 postgresJdbcTemplate.update(insertSql, *value)
             } catch (e: Exception) {
                 success = false
-                logger.error(e){"Insert failure, sql:[$insertSql], value:[$it]"}
+                logger.error(e) { "Insert failure, sql:[$insertSql], value:[$it]" }
             }
         }
         logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
@@ -114,10 +117,34 @@ class MigrationService(
 
     private suspend fun migrateAdditionalTables() = coroutineScope {
         logger.info { "migration migrateAdditionalTables started" }
-        selectInsert(
-            "SELECT ID, ORDER_ID, LOADING_DATE, UNLOADING_DATE, RATE, TRAVEL_TIME, DISTANCE, CUSTOMER_ID, CUSTOMER_BINDING, KONIKI, MKAD, GUARANTEED_ORDER, REGION_START_ID, REGION_FINISH_ID, LAT_START, LON_START, LAT_FINISH, LON_FINISH, LOADING_TIME, UNLOADING_TIME, PLACE_START_ID, PLACE_FINISH_ID, FEDERAL_DISTRICT_START_ID FROM test_tms_LabIT.dbo.DISTR_ORDER;",
-            "INSERT INTO distr_order (id, order_id, loading_date, unloading_date, rate, travel_time, distance, customer_id, customer_binding, koniki, mkad, guaranteed_order, region_start_id, region_finish_id, lat_start, lon_start, lat_finish, lon_finish, loading_time, unloading_time, place_start_id, place_finish_id, federal_district_start_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        )
+        var pairOfSelectInsert = readSelectInsertFromFile("db_scripts/migration_data.sql")
+        pairOfSelectInsert.forEach {
+            logger.info { "Start selectInsertOf : ${it.first} , ${it.second}" }
+            selectInsert(it.first, it.second)
+            logger.info { "Finised selectInsertOf : ${it.first} , ${it.second}" }
+        }
         logger.info { "migration migrateAdditionalTables finished" }
+    }
+
+    fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
+        var symbols = FileUtil
+                .readAsString(File(fileName))
+                .replace("\n", " ", true)
+        val result = mutableListOf<Pair<String, String>>()
+        var selectString = ""
+        var insertString = ""
+        while (true) {
+            if (!symbols.contains("SELECT")) {
+                break;
+            }
+            selectString = symbols.substringAfter("SELECT").substringBefore(";")
+            selectString = "SELECT$selectString;"
+            symbols = StringUtils.removeIgnoreCase(symbols, selectString);
+            insertString = symbols.substringAfter("INSERT").substringBefore(";")
+            insertString = "INSERT$insertString;"
+            symbols = StringUtils.removeIgnoreCase(symbols, insertString);
+            result.add(Pair(selectString, insertString))
+        }
+        return result
     }
 }
