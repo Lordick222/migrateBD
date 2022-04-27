@@ -15,4 +15,7 @@ class MigrationController(private val migrationService: MigrationService) {
         migrationService.migrationBigTables()
         return "Миграция запущена"
     }
+
+    @GetMapping("/migration-system-tables")
+    suspend fun migrationSystemTables() = migrationService.migrationSystemTables()
 }
