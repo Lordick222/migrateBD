@@ -49,11 +49,27 @@ class MigrationService(
         logger.info { "migration big tables finished" }
     }
 
+    suspend fun migrationSystemTables() {
+        logger.info { "migration system tables started" }
+        runScript("db_scripts/system_table.sql")
+        logger.info { "migration system tables finished" }
+    }
+
+    private suspend fun runScript(filePath: String) = coroutineScope {
+        val pairOfSelectInsert = readSelectInsertFromFile(filePath)
+        pairOfSelectInsert.forEach {
+            async(Dispatchers.IO) {
+                selectInsert(it.first, it.second)
+            }
+        }
+    }
+
     suspend fun selectInsert(
         @Language("MySQL") selectSql: String,
         @Language("PostgreSQL") insertSql: String,
         test: Boolean = false
     ) {
+        logger.info { "Start selectInsertOf: select[$selectSql], insert = [$insertSql]" }
         val tableName = selectSql.substringAfter("FROM ").replace(";", "")
         logger.info { "select count in table, tableName:[$tableName]" }
         var count = try {
@@ -69,13 +85,13 @@ class MigrationService(
 
         if (count <= 1000) {
             val mutableMap = select(selectSql)
-            insert(insertSql, mutableMap)
+            insert(tableName, insertSql, mutableMap)
         } else {
             var offset = 0
             var stop = false
             while (!stop) {
                 val mutableMap = select(selectSql, limit = 1000, offset)
-                insert(insertSql, mutableMap)
+                insert(tableName, insertSql, mutableMap)
                 if (offset >= count) {
                     stop = true
                 }
@@ -85,16 +101,42 @@ class MigrationService(
                 }
             }
         }
+        logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
     }
 
-    private fun insert(insertSql: String, rows: MutableList<MutableMap<String, Any>>) {
+
+    private fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any>>) {
         val values = rows.map { map ->
             map.map {
-                try {
+                var value = try {
                     UUID.fromString(it.value.toString())
                 } catch (e: Exception) {
                     null
                 } ?: it.value
+                if (tableName.endsWith("sec_role", true) && it.key.equals("is_default_role", true)) {
+                    value = it.value == "1"
+                }
+                if (tableName.endsWith("sec_remember_me", true) && it.key.equals("version", true)) {
+                    value = 0
+                }
+                if (tableName.endsWith("sec_filter", true) && it.key.equals("global_default", true)) {
+                    value = it.value == "1"
+                }
+                if (tableName.endsWith("sec_presentation", true) && it.key.equals("is_auto_save", true)) {
+                    value = it.value == "1"
+                }
+                if (tableName.endsWith("sys_server", true) && it.key.equals("is_running", true)) {
+                    value = it.value == "1"
+                }
+                if (tableName.endsWith("sec_user", true) &&
+                    (it.key.equals("active", true)
+                            || it.key.equals("change_password_at_logon", true)
+                            || it.key.equals("time_zone_auto", true)
+                            )
+                ) {
+                    value = it.value == "1"
+                }
+                value
             }
         }
 //        logger.info { "insert values, count: [${values.size}]" }
@@ -118,19 +160,14 @@ class MigrationService(
 
     private suspend fun migrateAdditionalTables() = coroutineScope {
         logger.info { "migration migrateAdditionalTables started" }
-        var pairOfSelectInsert = readSelectInsertFromFile("db_scripts/migration_data.sql")
-        pairOfSelectInsert.forEach {
-            logger.info { "Start selectInsertOf : ${it.first} , ${it.second}" }
-            selectInsert(it.first, it.second)
-            logger.info { "Finised selectInsertOf : ${it.first} , ${it.second}" }
-        }
+        runScript("db_scripts/migration_data.sql")
         logger.info { "migration migrateAdditionalTables finished" }
     }
 
     fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
         var symbols = FileUtil
-                .readAsString(File(fileName))
-                .replace("\n", " ", true)
+            .readAsString(File(fileName))
+            .replace("\n", " ", true)
         val result = mutableListOf<Pair<String, String>>()
         var selectString = ""
         var insertString = ""
@@ -140,14 +177,23 @@ class MigrationService(
             }
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
-            var fildsToInsert = selectString.substringAfter("SELECT").substringBefore("FROM")
-            var countFieldToInsert = fildsToInsert.split(",").size
+            var fildsToInsert =
+                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+            val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
             insertString = "INSERT$insertString;"
+            val insertTableName = insertString.substringAfter("INSERT INTO ").substringBefore("(").trim()
+            //TODO нужно те поля которые мы мотим заинсертить, мы должны так же передавать в селект
+            if (insertTableName.equals("sys_scheduled_task", true)) {
+                //TODO этого поля в новой таблице нет
+                fieldNameToInsert.remove("period")
+                fieldNameToInsert.remove("PERIOD")
+            }
+            var countFieldToInsert = fieldNameToInsert.size
             symbols = StringUtils.removeIgnoreCase(symbols, insertString);
             val delSubstring = insertString.substringAfter("(").substringBefore(")")
-            insertString = StringUtils.replace(insertString, delSubstring, fildsToInsert)
+            insertString = StringUtils.replace(insertString, delSubstring, fieldNameToInsert.joinToString())
             var questionCaseString = insertString.substringAfter("VALUES(").substringBefore(")")
             insertString = StringUtils.replace(insertString, questionCaseString, getStringQuestion(countFieldToInsert))
             symbols = StringUtils.removeIgnoreCase(symbols, insertString);
