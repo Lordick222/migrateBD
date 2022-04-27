@@ -7,7 +7,6 @@ import org.springframework.scheduling.annotation.EnableAsync
 
 //@SpringBootApplication(exclude = [DataSourceAutoConfiguration::class])
 @SpringBootApplication
-@EnableAsync
 class MigrateBdApplication
 
 fun main(args: Array<String>) {
