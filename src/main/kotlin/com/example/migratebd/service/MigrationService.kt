@@ -114,25 +114,30 @@ class MigrationService(
                     null
                 } ?: it.value
                 if (tableName.endsWith("sec_role", true) && it.key.equals("is_default_role", true)) {
-                    value = it.value == "1"
+                    if (value != null) value = it.value.toString() == "1"
                 }
                 if (tableName.endsWith("sec_remember_me", true) && it.key.equals("version", true)) {
                     value = 0
                 }
                 if (tableName.endsWith("sec_filter", true) && it.key.equals("global_default", true)) {
-                    value = it.value == "1"
+                    if (value != null) value = it.value.toString() == "1"
                 }
                 if (tableName.endsWith("sec_presentation", true) && it.key.equals("is_auto_save", true)) {
-                    value = it.value == "1"
+                    if (value != null) value = it.value.toString() == "1"
                 }
                 if (tableName.endsWith("sys_server", true) && it.key.equals("is_running", true)) {
-                    value = it.value == "1"
+                    if (value != null) value = it.value.toString() == "1"
+                }
+                if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))) {
+                    if (value != null) value = it.value.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                    (it.key.equals("active", true)
-                            || it.key.equals("change_password_at_logon", true)
-                            || it.key.equals("time_zone_auto", true)
-                            )
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
                 ) {
                     value = it.value == "1"
                 }
@@ -187,8 +192,7 @@ class MigrationService(
             //TODO нужно те поля которые мы мотим заинсертить, мы должны так же передавать в селект
             if (insertTableName.equals("sys_scheduled_task", true)) {
                 //TODO этого поля в новой таблице нет
-                fieldNameToInsert.remove("period")
-                fieldNameToInsert.remove("PERIOD")
+                fieldNameToInsert.set(fieldNameToInsert.indexOf("PERIOD"), "period_")
             }
             var countFieldToInsert = fieldNameToInsert.size
             symbols = StringUtils.removeIgnoreCase(symbols, insertString);
