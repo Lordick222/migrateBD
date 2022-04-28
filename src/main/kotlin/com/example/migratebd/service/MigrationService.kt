@@ -133,6 +133,21 @@ class MigrationService(
                                 || it.key.equals("log_start", true) || it.key.equals("log_finish", true))) {
                     value = it.value?.toString() == "1"
                 }
+                if (tableName.endsWith("tms_direction", true) && it.key.equals("is_active", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_place", true) && it.key.equals("hide", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_order_cancel_reason", true) && it.key.equals("commentary", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("ozon_wb", true) && it.key.equals("commentary", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_reservation_users", true) && it.key.equals("permission", true)) {
+                    value = it.value?.toString() == "1"
+                }
                 if (tableName.endsWith("sec_user", true) &&
                         (it.key.equals("active", true)
                                 || it.key.equals("change_password_at_logon", true)
@@ -140,6 +155,14 @@ class MigrationService(
                                 )
                 ) {
                     value = it.value?.toString() == "1"
+                }
+                if(it.value.javaClass.name.equals("java.lang.Short")){
+                    if(value != null){
+                        when(value.toString()) {
+                            "1" -> value = true
+                            "0" -> value = false
+                        }
+                    }
                 }
                 value
             }
