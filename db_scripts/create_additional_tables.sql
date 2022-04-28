@@ -260,7 +260,7 @@ create table distr_vehicle_and_order_vehicle_task
     PLACE_FINISH_ID             UUID
 );
 
-create table distr_vehicle_free_integererval
+create table distr_vehicle_free_interval
 (
     ID         bigint,
     VEHICLE_ID UUID,

@@ -261,4 +261,45 @@ class MigrationService(
         repeat(count) { list.add("?") }
         return list.joinToString()
     }
+
+    fun analyzeCounts(): String {
+        var result = ""
+        var pairOfSelectInsert = readSelectInsertFromFile("db_scripts/system_table.sql")
+        pairOfSelectInsert.forEach {
+            result = result.plus(selectCount(it.first))
+        }
+        pairOfSelectInsert = readSelectInsertFromFile("db_scripts/migration_data.sql")
+        pairOfSelectInsert.forEach {
+            result = result.plus(selectCount(it.first))
+        }
+        pairOfSelectInsert = readSelectInsertFromFile("db_scripts/migration_data_big_sql.sql")
+        pairOfSelectInsert.forEach {
+            result = result.plus(selectCount(it.first))
+        }
+        return result
+    }
+
+    fun selectCount(
+            @Language("MySQL") selectSql: String,
+    ): String {
+        var tableName = selectSql.substringAfter("FROM ").replace(";", "")
+        var countMsql = try {
+            msqlJdbcTemplate.queryForObject("select count(1) FROM $tableName;", Int::class.java) ?: 0
+        } catch (e: Exception) {
+            logger.error(e) { "count failure" }
+            0
+        }
+        tableName = selectSql.substringAfter("dbo.")
+        var countPsql = try {
+            postgresJdbcTemplate.queryForObject("select count(1) FROM $tableName;", Int::class.java) ?: 0
+        } catch (e: Exception) {
+            logger.error(e) { "count failure" }
+            0
+        }
+        if (countMsql == countPsql) {
+            return "TABLE: $tableName msqlCount: $countMsql psqlCount: $countPsql OK\n"
+        } else {
+            return "ERRROR: $tableName msqlCount: $countMsql psqlCount: $countPsql\n"
+        }
+    }
 }
