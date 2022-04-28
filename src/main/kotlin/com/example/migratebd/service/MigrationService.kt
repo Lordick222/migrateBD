@@ -114,24 +114,24 @@ class MigrationService(
                     null
                 } ?: it.value
                 if (tableName.endsWith("sec_role", true) && it.key.equals("is_default_role", true)) {
-                    if (value != null) value = it.value.toString() == "1"
+                    value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_remember_me", true) && it.key.equals("version", true)) {
                     value = 0
                 }
                 if (tableName.endsWith("sec_filter", true) && it.key.equals("global_default", true)) {
-                    if (value != null) value = it.value.toString() == "1"
+                    value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_presentation", true) && it.key.equals("is_auto_save", true)) {
-                    if (value != null) value = it.value.toString() == "1"
+                   value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sys_server", true) && it.key.equals("is_running", true)) {
-                    if (value != null) value = it.value.toString() == "1"
+                    value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
                         && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
                                 || it.key.equals("log_start", true) || it.key.equals("log_finish", true))) {
-                    if (value != null) value = it.value.toString() == "1"
+                    value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
                         (it.key.equals("active", true)
@@ -139,7 +139,7 @@ class MigrationService(
                                 || it.key.equals("time_zone_auto", true)
                                 )
                 ) {
-                    value = it.value == "1"
+                    value = it.value?.toString() == "1"
                 }
                 value
             }
@@ -183,7 +183,7 @@ class MigrationService(
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
             var fildsToInsert =
-                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+                    selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
             val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
