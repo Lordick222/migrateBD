@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import java.io.File
+import java.time.Duration
+import java.time.LocalDateTime
 import java.util.*
 
 
@@ -22,15 +24,36 @@ class MigrationService(
 
     private companion object : KLogging()
 
+    val logTimeMap = mutableListOf<LogTime>()
+
+
+    fun getTotalTime(): String {
+        var resultString = ""
+        logTimeMap.forEach {
+            resultString = resultString.plus("${it.name} ")
+            resultString = resultString.plus("started at ${it.timeEnd.} ")
+            resultString = resultString.plus("end at ${it.timeEnd.toString()} ")
+            if (it.timeEnd != null && it.timeStart != null) {
+                resultString = resultString.plus("total time: ${it.timeEnd!! - it.timeStart} \n")
+            }
+        }
+        return resultString;
+    }
+
     suspend fun migrate() = coroutineScope {
+        var log = LogTime("Migration", Duration.ofMillis(System.currentTimeMillis()), null)
+        logTimeMap.add(log)
         logger.info { "migration started" }
         async {
             migrateAdditionalTables()
         }
         logger.info { "migration finished" }
+        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
     }
 
     suspend fun migrationBigTables() = coroutineScope {
+        var log = LogTime("Migration-big-tables", Duration.ofMillis(System.currentTimeMillis()), null)
+        logTimeMap.add(log)
         logger.info { "migration big tables started" }
         async(Dispatchers.IO) {
             selectInsert(
@@ -47,12 +70,16 @@ class MigrationService(
             )
         }
         logger.info { "migration big tables finished" }
+        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
     }
 
     suspend fun migrationSystemTables() {
+        var log = LogTime("Migration-system-tables", Duration.ofMillis(System.currentTimeMillis()), null)
+        logTimeMap.add(log)
         logger.info { "migration system tables started" }
         runScript("db_scripts/system_table.sql")
         logger.info { "migration system tables finished" }
+        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
     }
 
     private suspend fun runScript(filePath: String) = coroutineScope {
