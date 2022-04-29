@@ -11,7 +11,8 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import java.io.File
-import java.time.Duration
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.*
 
 
@@ -30,29 +31,34 @@ class MigrationService(
         var resultString = ""
         logTimeMap.forEach {
             resultString = resultString.plus("${it.name} ")
-            resultString = resultString.plus("started at ${it.timeEnd} ")
+            resultString = resultString.plus("started at ${it.timeStart} ")
             resultString = resultString.plus("end at ${it.timeEnd} ")
             if (it.timeEnd != null && it.timeStart != null) {
-                val value = it.timeEnd ?: Duration.ZERO
-                resultString = resultString.plus("total time: ${value - it.timeStart} \n")
+                val result = ChronoUnit.MINUTES.between(it.timeStart, it.timeEnd)
+                if (result >= 60) {
+                    resultString = resultString.plus("total time: ${result / 60} HH ${result % 60} MM")
+                } else {
+                    resultString = resultString.plus("total time: ${result} MM")
+                }
             }
+            resultString = resultString.plus("\n")
         }
         return resultString;
     }
 
     suspend fun migrate() = coroutineScope {
-        var log = LogTime("Migration", Duration.ofMillis(System.currentTimeMillis()), null)
+        var log = LogTime("Migration", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration started" }
         async {
             migrateAdditionalTables()
         }
         logger.info { "migration finished" }
-        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
+        log.timeEnd = LocalDateTime.now()
     }
 
     suspend fun migrationBigTables() = coroutineScope {
-        var log = LogTime("Migration-big-tables", Duration.ofMillis(System.currentTimeMillis()), null)
+        var log = LogTime("Migration-big-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration big tables started" }
         async(Dispatchers.IO) {
@@ -70,16 +76,16 @@ class MigrationService(
             )
         }
         logger.info { "migration big tables finished" }
-        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
+        log.timeEnd = LocalDateTime.now()
     }
 
     suspend fun migrationSystemTables() {
-        var log = LogTime("Migration-system-tables", Duration.ofMillis(System.currentTimeMillis()), null)
+        var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration system tables started" }
         runScript("db_scripts/system_table.sql")
         logger.info { "migration system tables finished" }
-        log.timeEnd = Duration.ofMillis(System.currentTimeMillis())
+        log.timeEnd = LocalDateTime.now()
     }
 
     private suspend fun runScript(filePath: String) = coroutineScope {
