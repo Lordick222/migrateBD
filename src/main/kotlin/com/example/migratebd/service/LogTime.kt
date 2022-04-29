@@ -5,6 +5,6 @@ import java.time.LocalDateTime
 
 data class LogTime(
         var name: String?,
-        var timeStart: Duration?,
-        var timeEnd: Duration?,
+        var timeStart: LocalDateTime?,
+        var timeEnd: LocalDateTime?,
 )
