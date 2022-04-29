@@ -125,7 +125,7 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 -- start
 SELECT ID, VEHICLE_ID, DATE_S, DATE_F, TIME_DIFF, LAT_S, LON_S, LAT_F, LON_F, FLAG
 FROM test_tms_LabIT.dbo.DISTR_VEHICLE_FREE_INTERVAL;
-INSERT INTO distr_vehicle_free_integererval
+INSERT INTO distr_vehicle_free_interval
 (id, vehicle_id, date_s, date_f, time_diff, lat_s, lon_s, lat_f, lon_f, flag)
 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- end

@@ -2,7 +2,6 @@ package com.example.migratebd.controllers
 
 import com.example.migratebd.service.MigrationService
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -20,12 +19,12 @@ class MigrationController(private val migrationService: MigrationService) {
     @GetMapping("/migration-system-tables")
     suspend fun migrationSystemTables() = migrationService.migrationSystemTables()
 
-    @PostMapping("/total-time")
+    @GetMapping("/total-time")
     fun getTotalTime(): String {
         return migrationService.getTotalTime()
     }
 
-    @PostMapping("/total-counts")
+    @GetMapping("/total-counts")
     fun getAnalyzeCounts(): String {
         return migrationService.analyzeCounts()
     }

@@ -1,16 +1,22 @@
 server.port: 9091
+
+server:
+  error:
+    include-stacktrace: never
+    whitelabel:
+      enabled: false
 spring:
   datasource:
     postgres:
-      url: jdbc:postgresql://localhost:3723/accounts
-      username: postgres
-      password: postgres
+      url: jdbc:postgresql://10.6.0.13:5432/dev-app
+      username: dev-app
+      password: G10hrWmCYYNy98
       driverClassName: org.postgresql.Driver
     msql:
-      url: jdbc:postgresql://localhost:3722/db_task
-      username: postgres
-      password: postgres
-      driverClassName: org.postgresql.Driver
+      url: jdbc:sqlserver://10.4.1.11:1433;database=test_tms_LabIT
+      username: test_tms_LabIT
+      password: test_tms_LabIT
+      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
 #    msql:
 #      url: jdbc:sqlserver://localhost:1433;database=TestDb;encrypt=false;trustServerCertificate=true
 #      username: asmws

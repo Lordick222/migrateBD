@@ -14,7 +14,7 @@ ALTER TABLE distr_vehicle_and_order_rate_per_km DISABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_rent DISABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_trailer_type DISABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_vehicle_task DISABLE TRIGGER ALL;
-ALTER TABLE distr_vehicle_free_integererval DISABLE TRIGGER ALL;
+ALTER TABLE distr_vehicle_free_interval DISABLE TRIGGER ALL;
 ALTER TABLE sec_constraint DISABLE TRIGGER ALL;
 ALTER TABLE sec_entity_log DISABLE TRIGGER ALL;
 ALTER TABLE sec_filter DISABLE TRIGGER ALL;
