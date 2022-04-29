@@ -183,13 +183,6 @@ INSERT INTO sys_config
 VALUES(?, ?, ?, ?, ?, ?, ?, ?);
 -- end
 -- start
-SELECT SCRIPT_NAME, CREATE_TS, IS_INIT
-FROM test_tms_LabIT.dbo.SYS_DB_CHANGELOG;
-INSERT INTO sys_db_changelog
-(script_name, create_ts, is_init)
-VALUES(?, ?, ?);
--- end
--- start
 SELECT ID, CREATE_TS, CREATED_BY, ENTITY_META_CLASS, ENTITY_ID, STRING_ENTITY_ID, INT_ENTITY_ID, LONG_ENTITY_ID, AUTHOR_ID, VIEW_XML, SNAPSHOT_XML, SNAPSHOT_DATE
 FROM test_tms_LabIT.dbo.SYS_ENTITY_SNAPSHOT;
 INSERT INTO sys_entity_snapshot
