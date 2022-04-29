@@ -54,7 +54,7 @@ class MigrationService(
             migrateAdditionalTables()
         }
         logger.info { "migration finished" }
-        log.timeEnd = LocalDateTime.now().plusHours(2).plusMinutes(14)
+        log.timeEnd = LocalDateTime.now()
     }
 
     suspend fun migrationBigTables() = coroutineScope {
