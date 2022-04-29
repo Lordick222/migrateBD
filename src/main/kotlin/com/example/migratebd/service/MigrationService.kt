@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Duration
-import java.time.LocalDateTime
 import java.util.*
 
 
@@ -31,10 +30,11 @@ class MigrationService(
         var resultString = ""
         logTimeMap.forEach {
             resultString = resultString.plus("${it.name} ")
-            resultString = resultString.plus("started at ${it.timeEnd.} ")
-            resultString = resultString.plus("end at ${it.timeEnd.toString()} ")
+            resultString = resultString.plus("started at ${it.timeEnd} ")
+            resultString = resultString.plus("end at ${it.timeEnd} ")
             if (it.timeEnd != null && it.timeStart != null) {
-                resultString = resultString.plus("total time: ${it.timeEnd!! - it.timeStart} \n")
+                val value = it.timeEnd ?: Duration.ZERO
+                resultString = resultString.plus("total time: ${value - it.timeStart} \n")
             }
         }
         return resultString;
@@ -111,13 +111,13 @@ class MigrationService(
         if (test) count = 1555
 
         if (count <= 1000) {
-            val mutableMap = select(selectSql)
+            val mutableMap = select(tableName, selectSql)
             insert(tableName, insertSql, mutableMap)
         } else {
             var offset = 0
             var stop = false
             while (!stop) {
-                val mutableMap = select(selectSql, limit = 1000, offset)
+                val mutableMap = select(tableName, selectSql, limit = 1000, offset)
                 insert(tableName, insertSql, mutableMap)
                 if (offset >= count) {
                     stop = true
@@ -132,7 +132,7 @@ class MigrationService(
     }
 
 
-    private fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any>>) {
+    private fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
         val values = rows.map { map ->
             map.map {
                 var value = try {
@@ -150,14 +150,15 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_presentation", true) && it.key.equals("is_auto_save", true)) {
-                   value = it.value?.toString() == "1"
+                    value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sys_server", true) && it.key.equals("is_running", true)) {
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
-                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
-                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))) {
+                    && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                            || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                ) {
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("tms_direction", true) && it.key.equals("is_active", true)) {
@@ -176,16 +177,16 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                        (it.key.equals("active", true)
-                                || it.key.equals("change_password_at_logon", true)
-                                || it.key.equals("time_zone_auto", true)
-                                )
+                    (it.key.equals("active", true)
+                            || it.key.equals("change_password_at_logon", true)
+                            || it.key.equals("time_zone_auto", true)
+                            )
                 ) {
                     value = it.value?.toString() == "1"
                 }
-                if(it.value.javaClass.name.equals("java.lang.Short")){
-                    if(value != null){
-                        when(value.toString()) {
+                if (it.value?.javaClass?.name.equals("java.lang.Short")) {
+                    if (value != null) {
+                        when (value.toString()) {
                             "1" -> value = true
                             "0" -> value = false
                         }
@@ -208,9 +209,18 @@ class MigrationService(
 //        logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
     }
 
-    fun select(selectSql: String, limit: Int = 1000, offset: Int = 0): MutableList<MutableMap<String, Any>> {
-        val selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
-        return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
+    fun select(
+        tableName: String,
+        selectSql: String,
+        limit: Int = 1000,
+        offset: Int = 0
+    ): MutableList<MutableMap<String, Any?>> {
+        var selectPagination = selectSql
+        if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
+            selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
+            return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
+        }
+        return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
     private suspend fun migrateAdditionalTables() = coroutineScope {
@@ -221,7 +231,7 @@ class MigrationService(
 
     fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
         var symbols = FileUtil
-            .readAsString(File(fileName))
+            .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
             .replace("\n", " ", true)
         val result = mutableListOf<Pair<String, String>>()
         var selectString = ""
@@ -233,7 +243,7 @@ class MigrationService(
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
             var fildsToInsert =
-                    selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
             val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
@@ -280,7 +290,7 @@ class MigrationService(
     }
 
     fun selectCount(
-            @Language("MySQL") selectSql: String,
+        @Language("MySQL") selectSql: String,
     ): String {
         var tableName = selectSql.substringAfter("FROM ").replace(";", "")
         var countMsql = try {
