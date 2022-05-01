@@ -117,21 +117,31 @@ class MigrationService(
         if (test) count = 1555
 
         if (count <= 1000) {
-            val mutableMap = select(tableName, selectSql)
+            val mutableMap = select(selectSql)
             insert(tableName, insertSql, mutableMap)
         } else {
-            var offset = 0
             var stop = false
+            var lastId: UUID? = null
             while (!stop) {
-                val mutableMap = select(tableName, selectSql, limit = 1000, offset)
-                insert(tableName, insertSql, mutableMap)
-                if (offset >= count) {
+                logger.info { "Select start $tableName id > $lastId" }
+                val mutableMap = select(selectSql, lastId)
+                logger.info { "Select end $tableName id > $lastId, count ${mutableMap.size}" }
+                val lastRow = mutableMap.last()
+                if(lastRow == null || lastRow.isEmpty()){
                     stop = true
+                }else {
+                    val lastIdRow = lastRow["ID"]
+                    if (lastIdRow != null) {
+                        lastId = try {
+                            UUID.fromString(lastIdRow as String)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    stop = lastId == null
+                    insert(tableName, insertSql, mutableMap)
                 }
-                offset += 1000
-                if (offset > count) {
-                    offset = count
-                }
+
             }
         }
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
@@ -216,16 +226,17 @@ class MigrationService(
     }
 
     fun select(
-        tableName: String,
         selectSql: String,
+        lastId: UUID? = null,
         limit: Int = 1000,
-        offset: Int = 0
     ): MutableList<MutableMap<String, Any?>> {
-        var selectPagination = selectSql
-        if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
-            selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
-            return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
+        var selectPagination = selectSql.replace("SELECT", "TOP $limit ").replace(";", "")
+        selectPagination = "SELECT ".plus(selectPagination)
+        if (lastId != null) {
+            selectPagination = selectPagination.plus(" WHERE id > ? order by ID;")
+            return msqlJdbcTemplate.queryForList(selectPagination , lastId)
         }
+        selectPagination = selectPagination.plus(" order by ID;")
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
