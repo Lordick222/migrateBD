@@ -14,17 +14,19 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
+import javax.transaction.Transactional
 
 
 @Service
 class MigrationService(
-    @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
-    @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
+        @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
+        @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
 ) {
 
     private companion object : KLogging()
 
     val logTimeMap = mutableListOf<LogTime>()
+    val logTimeMapOneMigration = mutableListOf<LogTime>()
 
 
     fun getTotalTime(): String {
@@ -40,6 +42,21 @@ class MigrationService(
                 } else {
                     resultString = resultString.plus("total time: ${result} MM")
                 }
+            }
+            resultString = resultString.plus("\n")
+        }
+        return resultString;
+    }
+
+    fun getTotalTimeMigr(): String {
+        var resultString = ""
+        logTimeMapOneMigration.forEach {
+            resultString = resultString.plus("${it.name} ")
+            resultString = resultString.plus("started at ${it.timeStart} ")
+            resultString = resultString.plus("end at ${it.timeEnd} ")
+            if (it.timeEnd != null && it.timeStart != null) {
+                val result = ChronoUnit.MILLIS.between(it.timeStart, it.timeEnd)
+                resultString = resultString.plus("total time: ${result} mmils")
             }
             resultString = resultString.plus("\n")
         }
@@ -63,16 +80,16 @@ class MigrationService(
         logger.info { "migration big tables started" }
         async(Dispatchers.IO) {
             selectInsert(
-                "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;",
-                "INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);",
-                test = true
+                    "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;",
+                    "INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);",
+                    test = true
             )
         }
         async(Dispatchers.IO) {
             selectInsert(
-                "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;",
-                "INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error) VALUES(?, ?, ?, ?, ?);",
-                test = true
+                    "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;",
+                    "INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error) VALUES(?, ?, ?, ?, ?);",
+                    test = true
             )
         }
         logger.info { "migration big tables finished" }
@@ -98,9 +115,9 @@ class MigrationService(
     }
 
     suspend fun selectInsert(
-        @Language("MySQL") selectSql: String,
-        @Language("PostgreSQL") insertSql: String,
-        test: Boolean = false
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false
     ) {
         logger.info { "Start selectInsertOf: select[$selectSql], insert = [$insertSql]" }
         val tableName = selectSql.substringAfter("FROM ").replace(";", "")
@@ -118,13 +135,13 @@ class MigrationService(
 
         if (count <= 1000) {
             val mutableMap = select(tableName, selectSql)
-            insert(tableName, insertSql, mutableMap)
+            generateInsetString(tableName, insertSql, mutableMap)
         } else {
             var offset = 0
             var stop = false
             while (!stop) {
                 val mutableMap = select(tableName, selectSql, limit = 1000, offset)
-                insert(tableName, insertSql, mutableMap)
+                generateInsetString(tableName, insertSql, mutableMap)
                 if (offset >= count) {
                     stop = true
                 }
@@ -137,8 +154,8 @@ class MigrationService(
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
     }
 
-
-    private fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
+    @Transactional()
+    fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
         val values = rows.map { map ->
             map.map {
                 var value = try {
@@ -162,8 +179,8 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
-                    && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
-                            || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -183,10 +200,10 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                    (it.key.equals("active", true)
-                            || it.key.equals("change_password_at_logon", true)
-                            || it.key.equals("time_zone_auto", true)
-                            )
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -215,16 +232,106 @@ class MigrationService(
 //        logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
     }
 
+    private fun generateInsetString(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
+        if (rows.size == 0 ) return
+        val log = LogTime("Insert", LocalDateTime.now(), null)
+        var resulrInsets = ""
+        val values = rows.map { map ->
+            resulrInsets = resulrInsets.plus("(")
+            map.map {
+                var value = try {
+                    UUID.fromString(it.value.toString())
+                } catch (e: Exception) {
+                    null
+                } ?: it.value
+                if (tableName.endsWith("sec_role", true) && it.key.equals("is_default_role", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("sec_remember_me", true) && it.key.equals("version", true)) {
+                    value = 0
+                }
+                if (tableName.endsWith("sec_filter", true) && it.key.equals("global_default", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("sec_presentation", true) && it.key.equals("is_auto_save", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("sys_server", true) && it.key.equals("is_running", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                ) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_direction", true) && it.key.equals("is_active", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_place", true) && it.key.equals("hide", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_order_cancel_reason", true) && it.key.equals("commentary", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("ozon_wb", true) && it.key.equals("commentary", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("tms_reservation_users", true) && it.key.equals("permission", true)) {
+                    value = it.value?.toString() == "1"
+                }
+                if (tableName.endsWith("sec_user", true) &&
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
+                ) {
+                    value = it.value?.toString() == "1"
+                }
+                if (it.value?.javaClass?.name.equals("java.lang.Short")) {
+                    if (value != null) {
+                        when (value.toString()) {
+                            "1" -> value = true
+                            "0" -> value = false
+                        }
+                    }
+                }
+                if (it.value?.javaClass?.genericSuperclass?.equals(Number::class.java) == true) {
+                    resulrInsets = resulrInsets.plus("$value,")
+                } else if (it.value == null) {
+                    resulrInsets = resulrInsets.plus("$value,")
+                } else {
+                    resulrInsets = resulrInsets.plus("'$value',")
+                }
+            }
+            resulrInsets = resulrInsets.dropLast(1)
+            resulrInsets = resulrInsets.plus("),\n")
+        }
+        resulrInsets = resulrInsets.dropLast(2)
+        var insertSqlNew = insertSql.substringBefore("VALUES").plus("VALUES $resulrInsets;")
+        try {
+            postgresJdbcTemplate.execute(insertSqlNew)
+        } catch (e: Exception) {
+            logger.error(e) { "Insert failure, sql:[$insertSql]" }
+        }
+        log.timeEnd = LocalDateTime.now()
+        logTimeMapOneMigration.add(log)
+    }
+
     fun select(
-        tableName: String,
-        selectSql: String,
-        limit: Int = 1000,
-        offset: Int = 0
+            tableName: String,
+            selectSql: String,
+            limit: Int = 1000,
+            offset: Int = 0
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
         if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
+            val log = LogTime("Select", LocalDateTime.now(), null)
             selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
-            return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
+            val result = msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
+            log.timeEnd = LocalDateTime.now()
+            logTimeMapOneMigration.add(log)
+            return result
         }
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
@@ -237,8 +344,8 @@ class MigrationService(
 
     fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
         var symbols = FileUtil
-            .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
-            .replace("\n", " ", true)
+                .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
+                .replace("\n", " ", true)
         val result = mutableListOf<Pair<String, String>>()
         var selectString = ""
         var insertString = ""
@@ -249,7 +356,7 @@ class MigrationService(
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
             var fildsToInsert =
-                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+                    selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
             val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
@@ -296,7 +403,7 @@ class MigrationService(
     }
 
     fun selectCount(
-        @Language("MySQL") selectSql: String,
+            @Language("MySQL") selectSql: String,
     ): String {
         var tableName = selectSql.substringAfter("FROM ").replace(";", "")
         var countMsql = try {
