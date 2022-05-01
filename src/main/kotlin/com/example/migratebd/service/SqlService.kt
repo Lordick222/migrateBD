@@ -1,6 +1,6 @@
 package com.example.migratebd.service
 
-import jvm.gismt.shared.clients.`code-verification-api-client`.Metrics
+import com.example.migratebd.Metrics
 import mu.KLogging
 import org.intellij.lang.annotations.Language
 import org.springframework.beans.factory.annotation.Qualifier

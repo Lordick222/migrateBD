@@ -1,4 +1,4 @@
-package jvm.gismt.shared.clients.`code-verification-api-client`
+package com.example.migratebd
 
 import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.Timer
