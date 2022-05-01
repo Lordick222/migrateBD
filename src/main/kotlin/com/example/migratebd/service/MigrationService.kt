@@ -1,14 +1,12 @@
 package com.example.migratebd.service
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import mu.KLogging
 import org.apache.commons.lang3.StringUtils
 import org.aspectj.util.FileUtil
 import org.intellij.lang.annotations.Language
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import java.io.File
 import java.time.LocalDateTime
@@ -18,8 +16,8 @@ import java.util.*
 
 @Service
 class MigrationService(
-    @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
-    @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
+        @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
+        @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
 ) {
 
     private companion object : KLogging()
@@ -49,7 +47,8 @@ class MigrationService(
 
     fun getTotalTimeMigr(): String {
         var resultString = ""
-        logTimeMapOneMigration.forEach {
+        val resultTime = logTimeMapOneMigration.toList()
+        resultTime.forEach {
             resultString = resultString.plus("${it.first.name} ")
             resultString = resultString.plus("started at ${it.first.timeStart} ")
             resultString = resultString.plus("end at ${it.first.timeEnd} ")
@@ -70,40 +69,28 @@ class MigrationService(
         return resultString;
     }
 
-    suspend fun migrate() = coroutineScope {
+    @Async
+    fun migrate() {
         var log = LogTime("Migration", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration started" }
-        async {
-            migrateAdditionalTables()
-        }
+        migrateAdditionalTables()
         logger.info { "migration finished" }
         log.timeEnd = LocalDateTime.now()
     }
 
-    suspend fun migrationBigTables() = coroutineScope {
+    @Async
+    fun migrationBigTables() {
         var log = LogTime("Migration-big-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration big tables started" }
-        async(Dispatchers.IO) {
-            selectInsert(
-                    "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;",
-                    "INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);",
-                    test = false
-            )
-        }
-        async(Dispatchers.IO) {
-            selectInsert(
-                    "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;",
-                    "INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error) VALUES(?, ?, ?, ?, ?);",
-                    test = false
-            )
-        }
+        migrateAdditionalTablesBig()
         logger.info { "migration big tables finished" }
         log.timeEnd = LocalDateTime.now()
     }
 
-    suspend fun migrationSystemTables() {
+    @Async
+    fun migrationSystemTables() {
         var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
         logger.info { "migration system tables started" }
@@ -112,19 +99,19 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
-    private suspend fun runScript(filePath: String) = coroutineScope {
+    @Async
+    public fun runScript(filePath: String) {
         val pairOfSelectInsert = readSelectInsertFromFile(filePath)
         pairOfSelectInsert.forEach {
-            async(Dispatchers.IO) {
-                selectInsert(it.first, it.second)
-            }
+            selectInsert(it.first, it.second)
         }
     }
 
-    suspend fun selectInsert(
-        @Language("MySQL") selectSql: String,
-        @Language("PostgreSQL") insertSql: String,
-        test: Boolean = false
+    @Async
+    fun selectInsert(
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false
     ) {
         logger.info { "Start selectInsertOf: select[$selectSql], insert = [$insertSql]" }
         val tableName = selectSql.substringAfter("FROM ").replace(";", "")
@@ -149,28 +136,23 @@ class MigrationService(
             logIns.timeEnd = LocalDateTime.now()
             logTimeMapOneMigration.add(Pair(log, logIns))
         } else {
+            var offset = 0
             var stop = false
-            var lastId: UUID? = null
             while (!stop) {
-                logger.info { "Select start $tableName id > $lastId" }
-                val mutableMap = select(selectSql, lastId)
-                logger.info { "Select end $tableName id > $lastId, count ${mutableMap.size}" }
-                val lastRow = mutableMap.last()
-                if(lastRow == null || lastRow.isEmpty()){
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                val mutableMap = select(tableName, selectSql, limit = 1000, offset)
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                generateInsetString(tableName, insertSql, mutableMap)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
+                if (offset >= count) {
                     stop = true
-                }else {
-                    val lastIdRow = lastRow["ID"]
-                    if (lastIdRow != null) {
-                        lastId = try {
-                            UUID.fromString(lastIdRow as String)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    stop = lastId == null
-                    insert(tableName, insertSql, mutableMap)
                 }
-
+                offset += 1000
+                if (offset > count) {
+                    offset = count
+                }
             }
         }
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
@@ -201,8 +183,8 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
-                    && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
-                            || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -222,10 +204,10 @@ class MigrationService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                    (it.key.equals("active", true)
-                            || it.key.equals("change_password_at_logon", true)
-                            || it.key.equals("time_zone_auto", true)
-                            )
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -341,31 +323,33 @@ class MigrationService(
         }
     }
 
-    fun select(
-        selectSql: String,
-        lastId: UUID? = null,
-        limit: Int = 1000,
-    ): MutableList<MutableMap<String, Any?>> {
-        var selectPagination = selectSql.replace("SELECT", "TOP $limit ").replace(";", "")
-        selectPagination = "SELECT ".plus(selectPagination)
-        if (lastId != null) {
-            selectPagination = selectPagination.plus(" WHERE id > ? order by ID;")
-            return msqlJdbcTemplate.queryForList(selectPagination , lastId)
+    fun select(tableName: String, selectSql: String, limit: Int = 1000, offset: Int = 0): MutableList<MutableMap<String, Any?>> {
+        var selectPagination = selectSql
+        if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
+            selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
+            return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
         }
-        selectPagination = selectPagination.plus(" order by ID;")
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
-    private suspend fun migrateAdditionalTables() = coroutineScope {
+    @Async
+    fun migrateAdditionalTables() {
         logger.info { "migration migrateAdditionalTables started" }
         runScript("db_scripts/migration_data.sql")
         logger.info { "migration migrateAdditionalTables finished" }
     }
 
+    @Async
+    fun migrateAdditionalTablesBig() {
+        logger.info { "migration migrateAdditionalTables started" }
+        runScript("db_scripts/migration_data_big_sql.sql")
+        logger.info { "migration migrateAdditionalTables finished" }
+    }
+
     fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
         var symbols = FileUtil
-            .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
-            .replace("\n", " ", true)
+                .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
+                .replace("\n", " ", true)
         val result = mutableListOf<Pair<String, String>>()
         var selectString = ""
         var insertString = ""
@@ -376,7 +360,7 @@ class MigrationService(
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
             var fildsToInsert =
-                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+                    selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
             val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString);
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
@@ -423,7 +407,7 @@ class MigrationService(
     }
 
     fun selectCount(
-        @Language("MySQL") selectSql: String,
+            @Language("MySQL") selectSql: String,
     ): String {
         var tableName = selectSql.substringAfter("FROM ").replace(";", "")
         var countMsql = try {
