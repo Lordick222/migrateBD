@@ -17,6 +17,10 @@ spring:
       username: test_tms_LabIT
       password: test_tms_LabIT
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      maximum-pool-size: 10
+    tomcat:
+      max-active: 10
 #    msql:
 #      url: jdbc:sqlserver://localhost:1433;database=TestDb;encrypt=false;trustServerCertificate=true
 #      username: asmws
