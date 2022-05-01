@@ -78,27 +78,7 @@ class MigrationService(
     }
 
     fun getTotalTimeMigr(): String {
-        var resultString = ""
-        val resultTime = logTimeMapOneMigration.toList()
-        resultTime.forEach {
-            resultString = resultString.plus("${it.first.name} ")
-            resultString = resultString.plus("started at ${it.first.timeStart} ")
-            resultString = resultString.plus("end at ${it.first.timeEnd} ")
-            if (it.first.timeEnd != null && it.first.timeStart != null) {
-                val result = ChronoUnit.MILLIS.between(it.first.timeStart, it.first.timeEnd)
-                resultString = resultString.plus("total time: ${result} mmils")
-            }
-            resultString = resultString.plus("\n")
-            resultString = resultString.plus("${it.second.name} ")
-            resultString = resultString.plus("started at ${it.second.timeStart} ")
-            resultString = resultString.plus("end at ${it.second.timeEnd} ")
-            if (it.second.timeEnd != null && it.second.timeStart != null) {
-                val result = ChronoUnit.MILLIS.between(it.second.timeStart, it.second.timeEnd)
-                resultString = resultString.plus("total time: ${result} mmils")
-            }
-            resultString = resultString.plus("\n")
-        }
-        return resultString
+        return sqlService.getTotalTimeMigr()
     }
 
     @Async("sqlExecutor")
