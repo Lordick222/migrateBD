@@ -154,7 +154,6 @@ class MigrationService(
             while (!stop) {
                 val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = select(tableName, selectSql, limit = 1000, offset)
-                generateInsetString(tableName, insertSql, mutableMap)
                 log.timeEnd = LocalDateTime.now()
                 val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
                 generateInsetString(tableName, insertSql, mutableMap)
