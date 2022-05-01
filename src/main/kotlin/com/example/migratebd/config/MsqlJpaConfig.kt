@@ -1,5 +1,6 @@
 package com.example.migratebd.config
 
+import com.zaxxer.hikari.HikariDataSource
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -19,7 +20,7 @@ class MsqlJpaConfig {
 
     @Bean
     fun msqlDataSource(): javax.sql.DataSource {
-        return msqlDsProperties().initializeDataSourceBuilder().build()
+        return msqlDsProperties().initializeDataSourceBuilder().type(HikariDataSource::class.java).build()
     }
 
     @Bean
