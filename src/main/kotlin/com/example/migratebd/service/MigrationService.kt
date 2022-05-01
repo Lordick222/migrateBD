@@ -69,6 +69,7 @@ class MigrationService(
         return resultString;
     }
 
+    @Async
     fun migrate() {
         var log = LogTime("Migration", LocalDateTime.now(), null)
         logTimeMap.add(log)
@@ -78,6 +79,7 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
+    @Async
     fun migrationBigTables() {
         var log = LogTime("Migration-big-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
@@ -87,6 +89,7 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
+    @Async
     fun migrationSystemTables() {
         var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
         logTimeMap.add(log)
@@ -96,7 +99,8 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
-    fun runScript(filePath: String) {
+    @Async
+    public fun runScript(filePath: String) {
         val pairOfSelectInsert = readSelectInsertFromFile(filePath)
         pairOfSelectInsert.forEach {
             selectInsert(it.first, it.second)
@@ -328,12 +332,14 @@ class MigrationService(
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
+    @Async
     fun migrateAdditionalTables() {
         logger.info { "migration migrateAdditionalTables started" }
         runScript("db_scripts/migration_data.sql")
         logger.info { "migration migrateAdditionalTables finished" }
     }
 
+    @Async
     fun migrateAdditionalTablesBig() {
         logger.info { "migration migrateAdditionalTables started" }
         runScript("db_scripts/migration_data_big_sql.sql")
