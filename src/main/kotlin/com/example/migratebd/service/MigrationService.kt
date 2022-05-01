@@ -25,7 +25,7 @@ class MigrationService(
     private companion object : KLogging()
 
     val logTimeMap = mutableListOf<LogTime>()
-    val logTimeMapOneMigration = mutableListOf<LogTime>()
+    val logTimeMapOneMigration = mutableListOf<Pair<LogTime, LogTime>>()
 
 
     fun getTotalTime(): String {
@@ -50,11 +50,19 @@ class MigrationService(
     fun getTotalTimeMigr(): String {
         var resultString = ""
         logTimeMapOneMigration.forEach {
-            resultString = resultString.plus("${it.name} ")
-            resultString = resultString.plus("started at ${it.timeStart} ")
-            resultString = resultString.plus("end at ${it.timeEnd} ")
-            if (it.timeEnd != null && it.timeStart != null) {
-                val result = ChronoUnit.MILLIS.between(it.timeStart, it.timeEnd)
+            resultString = resultString.plus("${it.first.name} ")
+            resultString = resultString.plus("started at ${it.first.timeStart} ")
+            resultString = resultString.plus("end at ${it.first.timeEnd} ")
+            if (it.first.timeEnd != null && it.first.timeStart != null) {
+                val result = ChronoUnit.MILLIS.between(it.first.timeStart, it.first.timeEnd)
+                resultString = resultString.plus("total time: ${result} mmils")
+            }
+            resultString = resultString.plus("\n")
+            resultString = resultString.plus("${it.second.name} ")
+            resultString = resultString.plus("started at ${it.second.timeStart} ")
+            resultString = resultString.plus("end at ${it.second.timeEnd} ")
+            if (it.second.timeEnd != null && it.second.timeStart != null) {
+                val result = ChronoUnit.MILLIS.between(it.second.timeStart, it.second.timeEnd)
                 resultString = resultString.plus("total time: ${result} mmils")
             }
             resultString = resultString.plus("\n")
@@ -133,14 +141,25 @@ class MigrationService(
         if (test) count = 1555
 
         if (count <= 1000) {
+            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             val mutableMap = select(tableName, selectSql)
+            log.timeEnd = LocalDateTime.now()
+            val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
             generateInsetString(tableName, insertSql, mutableMap)
+            logIns.timeEnd = LocalDateTime.now()
+            logTimeMapOneMigration.add(Pair(log, logIns))
         } else {
             var offset = 0
             var stop = false
             while (!stop) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = select(tableName, selectSql, limit = 1000, offset)
                 generateInsetString(tableName, insertSql, mutableMap)
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                generateInsetString(tableName, insertSql, mutableMap)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
                 if (offset >= count) {
                     stop = true
                 }
@@ -232,7 +251,6 @@ class MigrationService(
 
     private fun generateInsetString(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
         if (rows.size == 0) return
-        val log = LogTime("Insert $tableName", LocalDateTime.now(), null)
         var resulrInsets = ""
         val values = rows.map { map ->
             resulrInsets = resulrInsets.plus("(")
@@ -316,8 +334,6 @@ class MigrationService(
         } catch (e: Exception) {
             logger.error(e) { "Insert failure, sql:[$tableName]" }
         }
-        log.timeEnd = LocalDateTime.now()
-        logTimeMapOneMigration.add(log)
     }
 
     fun select(
@@ -328,12 +344,8 @@ class MigrationService(
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
         if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
-            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
-            val result = msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
-            log.timeEnd = LocalDateTime.now()
-            logTimeMapOneMigration.add(log)
-            return result
+            return msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
         }
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
