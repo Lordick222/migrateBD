@@ -21,6 +21,8 @@ spring:
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
       hikari:
         maximum-pool-size: 30
+    tomcat:
+      max-active: 30
 #    msql:
 #      url: jdbc:sqlserver://localhost:1433;database=TestDb;encrypt=false;trustServerCertificate=true
 #      username: asmws
