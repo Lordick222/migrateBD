@@ -12,13 +12,32 @@ spring:
       username: dev-app
       password: G10hrWmCYYNy98
       driverClassName: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 30
     msql:
       url: jdbc:sqlserver://10.4.1.11:1433;database=test_tms_LabIT
       username: test_tms_LabIT
       password: test_tms_LabIT
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+      hikari:
+        maximum-pool-size: 30
 #    msql:
 #      url: jdbc:sqlserver://localhost:1433;database=TestDb;encrypt=false;trustServerCertificate=true
 #      username: asmws
 #      password: mypass1.
 #      driverClassName: com.mysql.jdbc.Driver
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    enable:
+      all: true
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
