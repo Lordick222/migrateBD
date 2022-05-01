@@ -82,14 +82,14 @@ class MigrationService(
             selectInsert(
                     "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;",
                     "INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);",
-                    test = true
+                    test = false
             )
         }
         async(Dispatchers.IO) {
             selectInsert(
                     "SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;",
                     "INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error) VALUES(?, ?, ?, ?, ?);",
-                    test = true
+                    test = false
             )
         }
         logger.info { "migration big tables finished" }
@@ -154,7 +154,6 @@ class MigrationService(
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
     }
 
-    @Transactional()
     fun insert(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
         val values = rows.map { map ->
             map.map {
@@ -233,8 +232,8 @@ class MigrationService(
     }
 
     private fun generateInsetString(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
-        if (rows.size == 0 ) return
-        val log = LogTime("Insert", LocalDateTime.now(), null)
+        if (rows.size == 0) return
+        val log = LogTime("Insert $tableName", LocalDateTime.now(), null)
         var resulrInsets = ""
         val values = rows.map { map ->
             resulrInsets = resulrInsets.plus("(")
@@ -312,7 +311,7 @@ class MigrationService(
         try {
             postgresJdbcTemplate.execute(insertSqlNew)
         } catch (e: Exception) {
-            logger.error(e) { "Insert failure, sql:[$insertSql]" }
+            logger.error(e) { "Insert failure, sql:[$tableName]" }
         }
         log.timeEnd = LocalDateTime.now()
         logTimeMapOneMigration.add(log)
@@ -326,7 +325,7 @@ class MigrationService(
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
         if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
-            val log = LogTime("Select", LocalDateTime.now(), null)
+            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             selectPagination = selectSql.replace(";", "").plus(" order by ID OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;")
             val result = msqlJdbcTemplate.queryForList(selectPagination, offset, limit)
             log.timeEnd = LocalDateTime.now()
