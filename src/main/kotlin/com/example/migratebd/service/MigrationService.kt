@@ -14,7 +14,6 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
-import javax.transaction.Transactional
 
 
 @Service
@@ -295,10 +294,14 @@ class MigrationService(
                         }
                     }
                 }
+//                java.lang.String
                 if (it.value?.javaClass?.genericSuperclass?.equals(Number::class.java) == true) {
                     resulrInsets = resulrInsets.plus("$value,")
                 } else if (it.value == null) {
                     resulrInsets = resulrInsets.plus("$value,")
+                } else if (it.value?.javaClass?.equals(String::class.java) == true) {
+                    value = value.toString().replace("'", "''")
+                    resulrInsets = resulrInsets.plus("'$value',")
                 } else {
                     resulrInsets = resulrInsets.plus("'$value',")
                 }
