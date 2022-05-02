@@ -81,6 +81,10 @@ class MigrationService(
         return sqlService.getTotalTimeMigr()
     }
 
+    fun getErrors(): String {
+        return sqlService.getErrors()
+    }
+
     @Async("sqlExecutor")
     fun migrateAdditionalTables() {
         logger.info { "migration migrateAdditionalTables started" }

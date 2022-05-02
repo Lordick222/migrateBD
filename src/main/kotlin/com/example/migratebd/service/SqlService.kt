@@ -13,13 +13,14 @@ import java.util.*
 
 @Service
 class SqlService(
-    @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
-    @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
+        @Qualifier("msqlJdbcTemplate") private val msqlJdbcTemplate: JdbcTemplate,
+        @Qualifier("postgresJdbcTemplate") private val postgresJdbcTemplate: JdbcTemplate
 ) {
 
     private companion object : KLogging()
 
     val logTimeMapOneMigration = mutableListOf<Pair<LogTime, LogTime>>()
+    val errors = mutableListOf<String>()
 
 
     fun getTotalTimeMigr(): String {
@@ -46,11 +47,20 @@ class SqlService(
         return resultString
     }
 
+    fun getErrors(): String {
+        var resultString = ""
+        val result = errors.toList()
+        result.forEach{
+            resultString  = resultString.plus(it)
+        }
+        return resultString
+    }
+
     @Async("sqlExecutor")
     fun selectInsert(
-        @Language("MySQL") selectSql: String,
-        @Language("PostgreSQL") insertSql: String,
-        test: Boolean = false
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false
     ) {
         logger.info { "Start selectInsertOf: select[$selectSql], insert = [$insertSql]" }
         val tableName = selectSql.substringAfter("FROM ").replace(";", "")
@@ -69,37 +79,34 @@ class SqlService(
         if (count <= 1000) {
             val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             val mutableMap = Metrics.timedSelect(tableName) {
-                select(tableName, selectSql)
+                selectByTop(tableName, selectSql, 1000, null)
             }
             log.timeEnd = LocalDateTime.now()
             val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
             Metrics.timedInsert(tableName) {
-                generateInsetString(tableName, insertSql, mutableMap)
+                generateInsetString(tableName, insertSql, mutableMap, 1000, null)
             }
             logIns.timeEnd = LocalDateTime.now()
             logTimeMapOneMigration.add(Pair(log, logIns))
         } else {
-            var offset = 0
             var stop = false
+            var maxValue: Any? = null
             while (!stop) {
                 val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = Metrics.timedSelect(tableName) {
-                    select(tableName, selectSql, limit = 1000, offset)
+                    selectByTop(tableName, selectSql, limit = 1000, maxValue)
                 }
                 log.timeEnd = LocalDateTime.now()
                 val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
                 Metrics.timedInsert(tableName) {
-                    generateInsetString(tableName, insertSql, mutableMap)
+                    generateInsetString(tableName, insertSql, mutableMap, 1000, maxValue)
+                }
+                if (mutableMap.size < 1000) stop = true
+                mutableMap.get(mutableMap.lastIndex).map {
+                    if (it.key.equals("ID", true)) maxValue = it.value!!
                 }
                 logIns.timeEnd = LocalDateTime.now()
                 logTimeMapOneMigration.add(Pair(log, logIns))
-                if (offset >= count) {
-                    stop = true
-                }
-                offset += 1000
-                if (offset > count) {
-                    offset = count
-                }
             }
         }
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
@@ -130,8 +137,8 @@ class SqlService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
-                    && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
-                            || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -151,10 +158,10 @@ class SqlService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                    (it.key.equals("active", true)
-                            || it.key.equals("change_password_at_logon", true)
-                            || it.key.equals("time_zone_auto", true)
-                            )
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -183,7 +190,7 @@ class SqlService(
 //        logger.info { "insert ${if (success) "success" else "fail"}, count: [${values.size}]" }
     }
 
-    private fun generateInsetString(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>) {
+    private fun generateInsetString(tableName: String, insertSql: String, rows: MutableList<MutableMap<String, Any?>>, limit: Int, afterValue: Any?) {
         if (rows.size == 0) return
         var resulrInsets = ""
         val values = rows.map { map ->
@@ -210,8 +217,8 @@ class SqlService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("SYS_SCHEDULED_TASK", true)
-                    && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
-                            || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
+                        && (it.key.equals("is_singleton", true) || it.key.equals("is_active", true)
+                                || it.key.equals("log_start", true) || it.key.equals("log_finish", true))
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -231,10 +238,10 @@ class SqlService(
                     value = it.value?.toString() == "1"
                 }
                 if (tableName.endsWith("sec_user", true) &&
-                    (it.key.equals("active", true)
-                            || it.key.equals("change_password_at_logon", true)
-                            || it.key.equals("time_zone_auto", true)
-                            )
+                        (it.key.equals("active", true)
+                                || it.key.equals("change_password_at_logon", true)
+                                || it.key.equals("time_zone_auto", true)
+                                )
                 ) {
                     value = it.value?.toString() == "1"
                 }
@@ -266,15 +273,17 @@ class SqlService(
         try {
             postgresJdbcTemplate.execute(insertSqlNew)
         } catch (e: Exception) {
-            logger.error(e) { "Insert failure, sql:[$tableName]" }
+            val msg = "Insert failure, sql:[$tableName] from limit: $limit afterMaxValue: $afterValue\n"
+            errors.add(msg)
+            logger.error(e) { msg }
         }
     }
 
     fun select(
-        tableName: String,
-        selectSql: String,
-        limit: Int = 1000,
-        offset: Int = 0
+            tableName: String,
+            selectSql: String,
+            limit: Int = 1000,
+            offset: Int = 0
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
         if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
@@ -284,9 +293,34 @@ class SqlService(
         return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
+    fun selectByTop(
+            tableName: String,
+            selectSql: String,
+            limit: Int = 1000,
+            maxValue: Any?
+    ): MutableList<MutableMap<String, Any?>> {
+        var selectPagination = selectSql
+        if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
+            if (maxValue == null) {
+                selectPagination = selectSql
+                        .replace(";", "")
+                        .replace("SELECT", "SELECT TOP($limit)")
+                        .plus(" ORDER BY ID;")
+                return msqlJdbcTemplate.queryForList(selectPagination)
+            } else {
+                selectPagination = selectSql
+                        .replace(";", "")
+                        .replace("SELECT", "SELECT TOP($limit) ")
+                        .plus(" WHERE ID > ? ORDER BY ID;")
+                return msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+            }
+        }
+        return msqlJdbcTemplate.queryForList(selectPagination)
+    }
+
 
     fun selectCount(
-        @Language("MySQL") selectSql: String,
+            @Language("MySQL") selectSql: String,
     ): String {
         var tableName = selectSql.substringAfter("FROM ").replace(";", "")
         var countMsql = try {
