@@ -24,6 +24,11 @@ class MigrationController(private val migrationService: MigrationService) {
         return migrationService.getTotalTime()
     }
 
+    @GetMapping("/total-time-migr")
+    fun getTotalTimeMigr(): String {
+        return migrationService.getTotalTimeMigr()
+    }
+
     @GetMapping("/total-counts")
     fun getAnalyzeCounts(): String {
         return migrationService.analyzeCounts()
