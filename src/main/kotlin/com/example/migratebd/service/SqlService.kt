@@ -50,8 +50,8 @@ class SqlService(
     fun getErrors(): String {
         var resultString = ""
         val result = errors.toList()
-        result.forEach{
-            resultString  = resultString.plus(it)
+        result.forEach {
+            resultString = resultString.plus(it)
         }
         return resultString
     }
@@ -76,15 +76,15 @@ class SqlService(
 
         if (test) count = 1555
 
-        if (count <= 500) {
+        if (count <= 200) {
             val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             val mutableMap = Metrics.timedSelect(tableName) {
-                selectByTop(tableName, selectSql, 500, null)
+                selectByTop(tableName, selectSql, 200, null)
             }
             log.timeEnd = LocalDateTime.now()
             val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
             Metrics.timedInsert(tableName) {
-                generateInsetString(tableName, insertSql, mutableMap, 500, null)
+                generateInsetString(tableName, insertSql, mutableMap, 200, null)
             }
             logIns.timeEnd = LocalDateTime.now()
             logTimeMapOneMigration.add(Pair(log, logIns))
@@ -94,19 +94,23 @@ class SqlService(
             while (!stop) {
                 val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = Metrics.timedSelect(tableName) {
-                    selectByTop(tableName, selectSql, limit = 500, maxValue)
+                    selectByTop(tableName, selectSql, limit = 200, maxValue)
                 }
                 log.timeEnd = LocalDateTime.now()
-                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
-                Metrics.timedInsert(tableName) {
-                    generateInsetString(tableName, insertSql, mutableMap, 500, maxValue)
+                if (mutableMap.isEmpty()) {
+                    maxValue = getLastId(tableName, selectSql, 200, maxValue)
+                } else {
+                    val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                    Metrics.timedInsert(tableName) {
+                        generateInsetString(tableName, insertSql, mutableMap, 200, maxValue)
+                    }
+                    if (mutableMap.size < 200) stop = true
+                    mutableMap.get(mutableMap.lastIndex).map {
+                        if (it.key.equals("ID", true)) maxValue = it.value!!
+                    }
+                    logIns.timeEnd = LocalDateTime.now()
+                    logTimeMapOneMigration.add(Pair(log, logIns))
                 }
-                if (mutableMap.size < 500) stop = true
-                mutableMap.get(mutableMap.lastIndex).map {
-                    if (it.key.equals("ID", true)) maxValue = it.value!!
-                }
-                logIns.timeEnd = LocalDateTime.now()
-                logTimeMapOneMigration.add(Pair(log, logIns))
             }
         }
         logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
@@ -282,7 +286,7 @@ class SqlService(
     fun select(
             tableName: String,
             selectSql: String,
-            limit: Int = 500,
+            limit: Int = 200,
             offset: Int = 0
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
@@ -296,28 +300,58 @@ class SqlService(
     fun selectByTop(
             tableName: String,
             selectSql: String,
-            limit: Int = 500,
+            limit: Int = 200,
             maxValue: Any?
     ): MutableList<MutableMap<String, Any?>> {
-        var selectPagination = selectSql
-        if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
-            if (maxValue == null) {
-                selectPagination = selectSql
-                        .replace(";", "")
-                        .replace("SELECT", "SELECT TOP($limit)")
-                        .plus(" ORDER BY ID;")
-                return msqlJdbcTemplate.queryForList(selectPagination)
-            } else {
-                selectPagination = selectSql
-                        .replace(";", "")
-                        .replace("SELECT", "SELECT TOP($limit) ")
-                        .plus(" WHERE ID > ? ORDER BY ID;")
-                return msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+        try {
+            var selectPagination = selectSql
+            if (!tableName.endsWith("SYS_DB_CHANGELOG", true)) {
+                if (maxValue == null) {
+                    selectPagination = selectSql
+                            .replace(";", "")
+                            .replace("SELECT", "SELECT TOP($limit)")
+                            .plus(" ORDER BY ID;")
+                    return msqlJdbcTemplate.queryForList(selectPagination)
+                } else {
+                    selectPagination = selectSql
+                            .replace(";", "")
+                            .replace("SELECT", "SELECT TOP($limit) ")
+                            .plus(" WHERE ID > ? ORDER BY ID;")
+                    return msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+                }
             }
+            return msqlJdbcTemplate.queryForList(selectPagination)
+        } catch (e: Exception) {
+            val msg = "Select failure, sql:[$tableName] from limit: $limit afterMaxValue: $maxValue\n"
+            errors.add(msg)
+            logger.error(e) { msg }
+            return mutableListOf()
         }
-        return msqlJdbcTemplate.queryForList(selectPagination)
     }
 
+    fun getLastId(
+            tableName: String,
+            selectSql: String,
+            limit: Int = 200,
+            maxValue: Any?
+    ): Any? {
+        var selectPagination = ""
+        if (maxValue != null) {
+            selectPagination = selectSql
+                    .plus("select *.ID from ")
+                    .plus(" $tableName WHERE ID > ?")
+                    .plus(" ORDER BY ID;")
+            val result = msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+            return result.get(result.lastIndex)
+        } else {
+            selectPagination = selectSql
+                    .plus("select *.ID from ")
+                    .plus(" $tableName ")
+                    .plus(" ORDER BY ID;")
+            val result = msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+            return result.get(result.lastIndex)
+        }
+    }
 
     fun selectCount(
             @Language("MySQL") selectSql: String,
