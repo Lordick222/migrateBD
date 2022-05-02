@@ -47,6 +47,16 @@ class SqlService(
         return resultString
     }
 
+    fun getTotalTimeMigrTotal(): String {
+        var resultString = ""
+        val resultTime = logTimeMapOneMigration.toList()
+        resultString = resultString.plus("Started at: ")
+                .plus(resultTime.get(0).first.timeStart)
+                .plus(" end at: ")
+                .plus(resultTime.get(resultTime.lastIndex).first.timeEnd)
+        return resultString
+    }
+
     fun getErrors(): String {
         var resultString = ""
         val result = errors.toList()

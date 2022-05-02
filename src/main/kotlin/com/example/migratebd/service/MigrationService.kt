@@ -80,10 +80,15 @@ class MigrationService(
     fun getTotalTimeMigr(): String {
         return sqlService.getTotalTimeMigr()
     }
+    fun getTotalTimeMigrTotal(): String {
+        return sqlService.getTotalTimeMigrTotal()
+    }
 
     fun getErrors(): String {
         return sqlService.getErrors()
     }
+
+
 
     @Async("sqlExecutor")
     fun migrateAdditionalTables() {
