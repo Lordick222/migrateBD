@@ -21,12 +21,18 @@ class MigrationController(private val migrationService: MigrationService) {
 
     @GetMapping("/total-time")
     fun getTotalTime(): String {
-        return migrationService.getTotalTime()
+        return migrationService.getTotalTimeMigrTotal()
     }
+
 
     @GetMapping("/total-time-migr")
     fun getTotalTimeMigr(): String {
         return migrationService.getTotalTimeMigr()
+    }
+
+    @GetMapping("/errors")
+    fun getErrors(): String {
+        return migrationService.getErrors()
     }
 
     @GetMapping("/total-counts")
