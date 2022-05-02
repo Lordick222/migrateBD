@@ -1,14 +1,13 @@
 -- start
 SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR, ORDER_ID
 FROM test_tms_LabIT.dbo.TMS_ONE_S_CANCEL_ORDER_HISTORY;
-INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO tms_one_s_cancel_order_history (id, date_, result_, message, message_error, order_id) VALUES(?, ?, ?, ?, ?, ?);
 -- end
 -- start
 SELECT ID, DATE_, RESULT_, MESSAGE, MESSAGE_ERROR
 FROM test_tms_LabIT.dbo.TMS_ONE_S_ORDER_HISTORY;
 INSERT INTO tms_one_s_order_history (id, date_, result_, message, message_error)
-VALUES (?, ?, ?, ?, ?);
+VALUES(?, ?, ?, ?, ?);
 -- end
 -- start
 SELECT ID, VAHICLE_ID, ORDER_ID, DATA_START, DATA_START_FACT, DATA_FINISH, DATA_FINISH_FACT, LAT_START, LON_START, LAT_FINISH, LON_FINISH, DISTANCE, TIME_, TYPE_, STATUS, ROUTE, PLACE_FINISH_ID, PLACE_START_ID, TIME_STRING, NEXT_WORK, VEHICLE_TASK_ID
