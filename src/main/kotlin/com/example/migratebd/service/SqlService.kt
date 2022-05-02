@@ -76,15 +76,15 @@ class SqlService(
 
         if (test) count = 1555
 
-        if (count <= 1000) {
+        if (count <= 500) {
             val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             val mutableMap = Metrics.timedSelect(tableName) {
-                selectByTop(tableName, selectSql, 1000, null)
+                selectByTop(tableName, selectSql, 500, null)
             }
             log.timeEnd = LocalDateTime.now()
             val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
             Metrics.timedInsert(tableName) {
-                generateInsetString(tableName, insertSql, mutableMap, 1000, null)
+                generateInsetString(tableName, insertSql, mutableMap, 500, null)
             }
             logIns.timeEnd = LocalDateTime.now()
             logTimeMapOneMigration.add(Pair(log, logIns))
@@ -94,14 +94,14 @@ class SqlService(
             while (!stop) {
                 val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = Metrics.timedSelect(tableName) {
-                    selectByTop(tableName, selectSql, limit = 1000, maxValue)
+                    selectByTop(tableName, selectSql, limit = 500, maxValue)
                 }
                 log.timeEnd = LocalDateTime.now()
                 val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
                 Metrics.timedInsert(tableName) {
-                    generateInsetString(tableName, insertSql, mutableMap, 1000, maxValue)
+                    generateInsetString(tableName, insertSql, mutableMap, 500, maxValue)
                 }
-                if (mutableMap.size < 1000) stop = true
+                if (mutableMap.size < 500) stop = true
                 mutableMap.get(mutableMap.lastIndex).map {
                     if (it.key.equals("ID", true)) maxValue = it.value!!
                 }
@@ -282,7 +282,7 @@ class SqlService(
     fun select(
             tableName: String,
             selectSql: String,
-            limit: Int = 1000,
+            limit: Int = 500,
             offset: Int = 0
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
@@ -296,7 +296,7 @@ class SqlService(
     fun selectByTop(
             tableName: String,
             selectSql: String,
-            limit: Int = 1000,
+            limit: Int = 500,
             maxValue: Any?
     ): MutableList<MutableMap<String, Any?>> {
         var selectPagination = selectSql
