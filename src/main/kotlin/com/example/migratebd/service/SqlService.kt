@@ -25,7 +25,7 @@ class SqlService(
 
     fun getTotalTimeMigr(): String {
         var resultString = ""
-        val resultTime = logTimeMapOneMigration.toList()
+        val resultTime = logTimeMapOneMigration.subList(logTimeMapOneMigration.lastIndex - Math.min(100, logTimeMapOneMigration.size - 1), logTimeMapOneMigration.lastIndex)
         resultTime.forEach {
             resultString = resultString.plus("${it.first.name} ")
             resultString = resultString.plus("started at ${it.first.timeStart} ")
@@ -101,6 +101,71 @@ class SqlService(
         } else {
             var stop = false
             var maxValue: Any? = null
+            while (!stop) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                val mutableMap = Metrics.timedSelect(tableName) {
+                    selectByTop(tableName, selectSql, limit = 200, maxValue)
+                }
+                log.timeEnd = LocalDateTime.now()
+                if (mutableMap.isEmpty()) {
+                    maxValue = getLastId(tableName, selectSql, 200, maxValue)
+                } else {
+                    val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                    Metrics.timedInsert(tableName) {
+                        generateInsetString(tableName, insertSql, mutableMap, 200, maxValue)
+                    }
+                    if (mutableMap.size < 200) stop = true
+                    mutableMap.get(mutableMap.lastIndex).map {
+                        if (it.key.equals("ID", true)) maxValue = it.value!!
+                    }
+                    logIns.timeEnd = LocalDateTime.now()
+                    logTimeMapOneMigration.add(Pair(log, logIns))
+                }
+            }
+        }
+        logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
+    }
+
+    @Async("sqlExecutor")
+    fun selectInsertById(
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false,
+            listStartIds: MutableList<FromIdStartDro>
+    ) {
+        val tableName = selectSql.substringAfter("FROM ").replace(";", "").trim()
+        var start = false
+        var maxValue: Any? = null
+        listStartIds.forEach {
+            if (it.tableName.equals(tableName, true)) {
+                start = true
+                maxValue = it.Id
+            }
+        }
+        if (start == false) return
+        var count = try {
+            msqlJdbcTemplate.queryForObject("select count(1) FROM $tableName;", Int::class.java) ?: 0
+        } catch (e: Exception) {
+            logger.error(e) { "count failure" }
+            0
+        }
+        logger.info { "select count in table, tableName:[$tableName], count:[$count]" }
+        if (count == 0) return
+        if (test) count = 1555
+        if (count <= 200) {
+            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+            val mutableMap = Metrics.timedSelect(tableName) {
+                selectByTop(tableName, selectSql, 200, maxValue)
+            }
+            log.timeEnd = LocalDateTime.now()
+            val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+            Metrics.timedInsert(tableName) {
+                generateInsetString(tableName, insertSql, mutableMap, 200, maxValue)
+            }
+            logIns.timeEnd = LocalDateTime.now()
+            logTimeMapOneMigration.add(Pair(log, logIns))
+        } else {
+            var stop = false
             while (!stop) {
                 val log = LogTime("Select $tableName", LocalDateTime.now(), null)
                 val mutableMap = Metrics.timedSelect(tableName) {

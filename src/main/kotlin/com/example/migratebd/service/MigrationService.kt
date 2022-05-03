@@ -12,7 +12,7 @@ import java.time.temporal.ChronoUnit
 
 @Service
 class MigrationService(
-    private val sqlService: SqlService
+        private val sqlService: SqlService
 ) {
 
     private companion object : KLogging()
@@ -51,6 +51,21 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
+    @Async
+    fun migrationAllTablesById(list: MutableList<FromIdStartDro>) {
+        var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
+        logTimeMap.add(log)
+        logger.info { "migration all tables start from Id start" }
+        val pairOfSelectInsert = readSelectInsertFromFile("db_scripts/system_table.sql")
+        pairOfSelectInsert.addAll(readSelectInsertFromFile("db_scripts/migration_data_big_sql.sql"))
+        pairOfSelectInsert.addAll(readSelectInsertFromFile("db_scripts/migration_data.sql"))
+        pairOfSelectInsert.forEach {
+            sqlService.selectInsertById(it.first, it.second, false, list)
+        }
+        logger.info { "migration all tables start from Id finish" }
+        log.timeEnd = LocalDateTime.now()
+    }
+
     fun runScript(filePath: String) {
         val pairOfSelectInsert = readSelectInsertFromFile(filePath)
         pairOfSelectInsert.forEach {
@@ -80,6 +95,7 @@ class MigrationService(
     fun getTotalTimeMigr(): String {
         return sqlService.getTotalTimeMigr()
     }
+
     fun getTotalTimeMigrTotal(): String {
         return sqlService.getTotalTimeMigrTotal()
     }
@@ -87,8 +103,6 @@ class MigrationService(
     fun getErrors(): String {
         return sqlService.getErrors()
     }
-
-
 
     @Async("sqlExecutor")
     fun migrateAdditionalTables() {
@@ -104,10 +118,10 @@ class MigrationService(
         logger.info { "migration migrateAdditionalTables finished" }
     }
 
-    fun readSelectInsertFromFile(fileName: String): List<Pair<String, String>> {
+    fun readSelectInsertFromFile(fileName: String): MutableList<Pair<String, String>> {
         var symbols = FileUtil
-            .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
-            .replace("\n", " ", true)
+                .readAsString(File(this::class.java.classLoader.getResource(fileName).toURI()))
+                .replace("\n", " ", true)
         val result = mutableListOf<Pair<String, String>>()
         var selectString = ""
         var insertString = ""
@@ -118,7 +132,7 @@ class MigrationService(
             selectString = symbols.substringAfter("SELECT").substringBefore(";")
             selectString = "SELECT$selectString;"
             var fildsToInsert =
-                selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
+                    selectString.substringAfter("SELECT").substringBefore(" FROM ").replace(Regex("[\\[|\\]]"), "")
             val fieldNameToInsert = fildsToInsert.split(",").map { it.trim() }.toMutableList()
             symbols = StringUtils.removeIgnoreCase(symbols, selectString)
             insertString = symbols.substringAfter("INSERT").substringBefore(";")
