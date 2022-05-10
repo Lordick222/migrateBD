@@ -352,6 +352,7 @@ class SqlService(
         try {
             postgresJdbcTemplate.execute(insertSqlNew)
         } catch (e: Exception) {
+            e.printStackTrace()
             val msg = "Insert failure, sql:[$tableName] from limit: $limit afterMaxValue: $afterValue\n"
             errors.add(msg)
             logger.error(e) { msg }
@@ -467,14 +468,20 @@ class SqlService(
             }
         }
         if (start == false) return
-        val log = LogTime("Select $tableName", LocalDateTime.now(), null)
         val mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
         mssqlIds.removeAll(psqlIds)
         var idsToInsert = mssqlIds.toList()
-        var y = selectByIds(tableName, selectSql, idsToInsert.subList(0, 200));
+        var count = 0;
+        var size = 200
+        while (true) {
+            var mutableMap = selectByIds(tableName, selectSql, idsToInsert.subList(count, Math.min(idsToInsert.size, count + size)))
+            generateInsetString(tableName, insertSql, mutableMap, -1, null)
+            if (mutableMap.size < size) break;
+            count += size
+        }
         logger("For $tableName psqlIds[${psqlIds.size}], mssqlIds[${mssqlIds.size}]")
-        logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
+        logger.info { "Finised selectInsertWithDiff: select[$selectSql], insert = [$insertSql]" }
     }
 
     fun selectByTopIdsMssql(
@@ -585,10 +592,11 @@ class SqlService(
             listIds: kotlin.collections.List<Any>
     ): MutableList<MutableMap<String, Any?>> {
         try {
+            var idsString = listIds.joinToString()
             var selectPagination = selectSql
                     .replace(";", "")
-                    .plus(" WHERE ID IN ?;")
-            return msqlJdbcTemplate.queryForList(selectPagination, listIds)
+                    .plus(" WHERE ID IN ($idsString);")
+            return msqlJdbcTemplate.queryForList(selectPagination)
         } catch (e: Exception) {
             return mutableListOf()
         }
