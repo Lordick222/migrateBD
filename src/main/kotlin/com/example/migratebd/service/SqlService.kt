@@ -475,8 +475,13 @@ class SqlService(
         var count = 0;
         var size = 200
         while (true) {
+            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
             var mutableMap = selectByIds(tableName, selectSql, idsToInsert.subList(count, Math.min(idsToInsert.size, count + size)))
+            log.timeEnd = LocalDateTime.now()
+            val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
             generateInsetString(tableName, insertSql, mutableMap, -1, null)
+            logIns.timeEnd = LocalDateTime.now()
+            logTimeMapOneMigration.add(Pair(log, logIns))
             if (mutableMap.size < size) break;
             count += size
         }
