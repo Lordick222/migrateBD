@@ -7,7 +7,7 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- end
 -- start
 SELECT ID, VEHICLE_ID, ORDER_ID, DATE_S, DATE_F, TIME_DIFF, LAT_S, LON_S, LAT_F, LON_F, FLAG
-FROM test_tms_LabIT.dbo.DISTR_ORDER_WORK;
+FROM tms.dbo.DISTR_ORDER_WORK;
 INSERT INTO distr_order_work (id, vehicle_id, order_id, date_s, date_f, time_diff, lat_s, lon_s, lat_f, lon_f, flag) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- end
 

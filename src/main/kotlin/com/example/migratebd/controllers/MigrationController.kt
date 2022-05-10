@@ -32,6 +32,12 @@ class MigrationController(private val migrationService: MigrationService) {
         return migrationService.migrationAllTablesById(list)
     }
 
+    @PostMapping("/migration-with-diff")
+    fun migrationAllTablesByDiff(@RequestBody list: MutableList<FromIdStartDro>) {
+        return migrationService.migrationAllTableWithDiff(list)
+    }
+
+
 //    migrationAllTablesById
 
 

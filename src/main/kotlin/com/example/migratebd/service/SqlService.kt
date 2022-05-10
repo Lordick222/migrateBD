@@ -451,4 +451,146 @@ class SqlService(
             return "ERRROR: $tableName msqlCount: $countMsql psqlCount: $countPsql\n"
         }
     }
+
+    @Async
+    fun selectInsertWithDiff(
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false,
+            listStartIds: MutableList<FromIdStartDro>
+    ) {
+        val tableName = selectSql.substringAfter("FROM ").replace(";", "").trim()
+        var start = false
+        listStartIds.forEach {
+            if (it.tableName.equals(tableName, true)) {
+                start = true
+            }
+        }
+        if (start == false) return
+        val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+        val mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
+        val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
+        mssqlIds.removeAll(psqlIds)
+        var idsToInsert = mssqlIds.toList()
+        var y = selectByIds(tableName, selectSql, idsToInsert.subList(0, 200));
+        logger("For $tableName psqlIds[${psqlIds.size}], mssqlIds[${mssqlIds.size}]")
+        logger.info { "Finised selectInsertOf: select[$selectSql], insert = [$insertSql]" }
+    }
+
+    fun selectByTopIdsMssql(
+            tableName: String,
+            selectSql: String,
+            limit: Int = 20000
+    ): HashSet<Any> {
+        try {
+            var selectPagination = selectSql
+            val stringToReplace = selectPagination.substringAfter("SELECT ").substringBefore(" FROM")
+            selectPagination = selectPagination.replace(stringToReplace, " ID ")
+            var maxValue: Any? = null
+            var flag = true
+            var resultList = kotlin.collections.HashSet<Any>()
+            while (flag) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                if (maxValue == null) {
+                    selectPagination = selectPagination
+                            .replace(";", "")
+                            .replace("SELECT", "SELECT TOP($limit)")
+                            .plus(" ORDER BY ID;")
+                    var result = msqlJdbcTemplate.queryForList(selectPagination)
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                    selectPagination = selectPagination
+                            .replace("ORDER BY ID", " WHERE ID > ? ORDER BY ID ")
+                } else {
+                    var result = msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                }
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
+            }
+            return resultList
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return kotlin.collections.HashSet<Any>()
+        }
+    }
+
+    fun selectByTopIdsPssql(
+            tableName: String,
+            selectSql: String,
+            limit: Int
+    ): HashSet<Any> {
+        try {
+            var selectPagination = selectSql.replace("tms.dbo.", " ")
+            val stringToReplace = selectPagination.substringAfter("SELECT ").substringBefore(" FROM")
+            selectPagination = selectPagination.replace(stringToReplace, " ID ")
+            var maxValue: Any? = null
+            var flag = true
+            var resultList = kotlin.collections.HashSet<Any>()
+            while (flag) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                if (maxValue == null) {
+                    selectPagination = selectPagination
+                            .replace(";", "")
+                            .plus(" ORDER BY ID LIMIT($limit);")
+                    var result = postgresJdbcTemplate.queryForList(selectPagination)
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                    selectPagination = selectPagination
+                            .replace("ORDER BY ID", " WHERE ID > ? ORDER BY ID ")
+                } else {
+                    var result = postgresJdbcTemplate.queryForList(selectPagination, maxValue)
+                    if (result.isEmpty()) return resultList
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                }
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
+            }
+            return resultList
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return kotlin.collections.HashSet<Any>()
+        }
+    }
+
+    fun selectByIds(
+            tableName: String,
+            selectSql: String,
+            listIds: kotlin.collections.List<Any>
+    ): MutableList<MutableMap<String, Any?>> {
+        try {
+            var selectPagination = selectSql
+                    .replace(";", "")
+                    .plus(" WHERE ID IN ?;")
+            return msqlJdbcTemplate.queryForList(selectPagination, listIds)
+        } catch (e: Exception) {
+            return mutableListOf()
+        }
+    }
 }
