@@ -473,13 +473,16 @@ class SqlService(
         var idsToInsert = mutableListOf<Any>()
         var mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
-        if (isUUId) {
+        if (!"java.lang.Long".equals(mssqlIds.first().javaClass.name)) {
             var mssqlIdsUUIDS = mssqlIds.map { UUID.fromString(it as String?) }.toHashSet()
             mssqlIdsUUIDS.removeAll(psqlIds)
             idsToInsert = mssqlIdsUUIDS.toMutableList()
         } else {
             mssqlIds.removeAll(psqlIds)
             idsToInsert = mssqlIds.toMutableList()
+        }
+        if (idsToInsert.size < 1){
+            return
         }
         var count = 0;
         var size = 200
