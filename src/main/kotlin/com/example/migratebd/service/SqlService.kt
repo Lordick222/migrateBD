@@ -475,13 +475,15 @@ class SqlService(
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
         if (!"java.lang.Long".equals(mssqlIds.first().javaClass.name)) {
             var mssqlIdsUUIDS = mssqlIds.map { UUID.fromString(it as String?) }.toHashSet()
+            deleteNotRequiredUUID(mssqlIdsUUIDS.clone() as HashSet<UUID>, psqlIds.clone() as HashSet<Any>, tableName);
             mssqlIdsUUIDS.removeAll(psqlIds)
             idsToInsert = mssqlIdsUUIDS.toMutableList()
         } else {
+            deleteNotRequiredLong(mssqlIds.clone() as HashSet<Any>, psqlIds.clone() as HashSet<Any>, tableName)
             mssqlIds.removeAll(psqlIds)
             idsToInsert = mssqlIds.toMutableList()
         }
-        if (idsToInsert.size < 1){
+        if (idsToInsert.size < 1) {
             return
         }
         var count = 0;
@@ -499,6 +501,49 @@ class SqlService(
         }
         logger("For $tableName psqlIds[${psqlIds.size}], mssqlIds[${mssqlIds.size}]")
         logger.info { "Finised selectInsertWithDiff: select[$selectSql], insert = [$insertSql]" }
+    }
+
+
+    fun deleteNotRequiredUUID(
+            mssqlIds: HashSet<UUID>,
+            psqlIds: HashSet<Any>,
+            tableName: String
+    ) {
+        try {
+            psqlIds.removeAll(mssqlIds)
+            var newTableName = tableName.removePrefix("tms.dbo.")
+            var delete = "DELETE FROM ".plus(newTableName)
+                    .plus(" WHERE id IN ")
+                    .plus(psqlIds.joinToString(separator = "','", prefix = "('", postfix = "');"))
+            postgresJdbcTemplate.execute(delete)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val msg = "Delete failure $tableName"
+            errors.add(msg)
+            logger.error(e) { msg }
+        }
+        var a = 1;
+    }
+
+    fun deleteNotRequiredLong(
+            mssqlIds: HashSet<Any>,
+            psqlIds: HashSet<Any>,
+            tableName: String
+    ) {
+        try {
+            psqlIds.removeAll(mssqlIds)
+            var newTableName = tableName.removePrefix("tms.dbo.")
+            var delete = "DELETE FROM ".plus(newTableName)
+                    .plus(" WHERE id IN ")
+                    .plus(psqlIds.joinToString(separator = ",", prefix = "(", postfix = ");"))
+            postgresJdbcTemplate.execute(delete)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val msg = "Delete failure $tableName"
+            errors.add(msg)
+            logger.error(e) { msg }
+        }
+        var a = 1;
     }
 
     fun selectByTopIdsMssql(
