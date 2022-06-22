@@ -37,6 +37,10 @@ class MigrationController(private val migrationService: MigrationService) {
         return migrationService.migrationAllTableWithDiff(list)
     }
 
+    @GetMapping("/migration-with-diff-all")
+    fun migrationAllTablesByDiff() {
+        return migrationService.migrationAllTableWithDiff()
+    }
 
 //    migrationAllTablesById
 

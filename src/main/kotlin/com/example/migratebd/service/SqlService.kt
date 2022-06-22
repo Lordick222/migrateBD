@@ -458,18 +458,20 @@ class SqlService(
             @Language("MySQL") selectSql: String,
             @Language("PostgreSQL") insertSql: String,
             test: Boolean = false,
-            listStartIds: MutableList<FromIdStartDro>
+            listStartIds: MutableList<FromIdStartDro>?
     ) {
         val tableName = selectSql.substringAfter("FROM ").replace(";", "").trim()
-        var isUUId = false
-        var start = false
-        listStartIds.forEach {
-            if (it.tableName.equals(tableName, true)) {
-                start = true
-                isUUId = it.isUUID
+        if(listStartIds != null){
+            var isUUId = false
+            var start = false
+            listStartIds.forEach {
+                if (it.tableName.equals(tableName, true)) {
+                    start = true
+                    isUUId = it.isUUID
+                }
             }
+            if (start == false) return
         }
-        if (start == false) return
         var idsToInsert = mutableListOf<Any>()
         var mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
