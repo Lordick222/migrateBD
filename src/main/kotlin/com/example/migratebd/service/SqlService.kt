@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
-import kotlin.collections.HashSet
 
 @Service
 class SqlService(
@@ -471,11 +470,17 @@ class SqlService(
             }
         }
         if (start == false) return
+        var idsToInsert = mutableListOf<Any>()
         var mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
-//        if(isUUId) mssqlIds = mssqlIds.mapTo(psqlIds) { UUID.fromString(it as String?) }
-        mssqlIds.removeAll(psqlIds.map { it.toString().uppercase() })
-        var idsToInsert = mssqlIds.toList()
+        if (isUUId) {
+            var mssqlIdsUUIDS = mssqlIds.map { UUID.fromString(it as String?) }.toHashSet()
+            mssqlIdsUUIDS.removeAll(psqlIds)
+            idsToInsert = mssqlIdsUUIDS.toMutableList()
+        } else {
+            mssqlIds.removeAll(psqlIds)
+            idsToInsert = mssqlIds.toMutableList()
+        }
         var count = 0;
         var size = 200
         while (true) {
@@ -601,7 +606,7 @@ class SqlService(
             listIds: kotlin.collections.List<Any>
     ): MutableList<MutableMap<String, Any?>> {
         try {
-            var idsString = listIds.joinToString("','","'", "'")
+            var idsString = listIds.joinToString("','", "'", "'")
             var selectPagination = selectSql
                     .replace(";", "")
                     .plus(" WHERE ID IN ($idsString);")
