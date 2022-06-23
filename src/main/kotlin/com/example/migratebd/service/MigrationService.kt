@@ -96,6 +96,45 @@ class MigrationService(
         log.timeEnd = LocalDateTime.now()
     }
 
+    @Async
+    fun migrationAllTableWithDiffSys() {
+        var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
+        logTimeMap.add(log)
+        logger.info { "migration all tables start from Id start" }
+        val pairOfSelectInsert = readSelectInsertFromFile("db_scripts/system_table.sql")
+        pairOfSelectInsert.forEach {
+            sqlService.selectInsertWithDiff(it.first, it.second, false, null)
+        }
+        logger.info { "migration all tables start from Id finish" }
+        log.timeEnd = LocalDateTime.now()
+    }
+
+    @Async
+    fun migrationAllTableWithAll() {
+        var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
+        logTimeMap.add(log)
+        logger.info { "migration all tables start from Id start" }
+        val pairOfSelectInsert = readSelectInsertFromFile("db_scripts/migration_data.sql")
+        pairOfSelectInsert.forEach {
+            sqlService.selectInsertWithDiff(it.first, it.second, false, null)
+        }
+        logger.info { "migration all tables start from Id finish" }
+        log.timeEnd = LocalDateTime.now()
+    }
+
+    @Async
+    fun migrationAllTableWithBig() {
+        var log = LogTime("Migration-system-tables", LocalDateTime.now(), null)
+        logTimeMap.add(log)
+        logger.info { "migration all tables start from Id start" }
+        val pairOfSelectInsert = (readSelectInsertFromFile("db_scripts/migration_data_big_sql.sql"))
+        pairOfSelectInsert.forEach {
+            sqlService.selectInsertWithDiff(it.first, it.second, false, null)
+        }
+        logger.info { "migration all tables start from Id finish" }
+        log.timeEnd = LocalDateTime.now()
+    }
+
     fun runScript(filePath: String) {
         val pairOfSelectInsert = readSelectInsertFromFile(filePath)
         pairOfSelectInsert.forEach {
