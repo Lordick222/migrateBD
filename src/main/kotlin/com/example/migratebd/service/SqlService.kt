@@ -513,6 +513,7 @@ class SqlService(
     ) {
         try {
             psqlIds.removeAll(mssqlIds)
+            if(psqlIds.isEmpty()) return
             var newTableName = tableName.removePrefix("tms.dbo.")
             var delete = "DELETE FROM ".plus(newTableName)
                     .plus(" WHERE id IN ")
@@ -534,6 +535,7 @@ class SqlService(
     ) {
         try {
             psqlIds.removeAll(mssqlIds)
+            if(psqlIds.isEmpty()) return
             var newTableName = tableName.removePrefix("tms.dbo.")
             var delete = "DELETE FROM ".plus(newTableName)
                     .plus(" WHERE id IN ")
