@@ -461,7 +461,7 @@ class SqlService(
             listStartIds: MutableList<FromIdStartDro>?
     ) {
         val tableName = selectSql.substringAfter("FROM ").replace(";", "").trim()
-        if(listStartIds != null){
+        if (listStartIds != null) {
             var isUUId = false
             var start = false
             listStartIds.forEach {
@@ -475,17 +475,18 @@ class SqlService(
         var idsToInsert = mutableListOf<Any>()
         var mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
         val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
+        if (mssqlIds.isEmpty()) return
         if (!"java.lang.Long".equals(mssqlIds.first().javaClass.name)) {
             var mssqlIdsUUIDS = mssqlIds.map { UUID.fromString(it as String?) }.toHashSet()
-            deleteNotRequiredUUID(mssqlIdsUUIDS.clone() as HashSet<UUID>, psqlIds.clone() as HashSet<Any>, tableName);
+//            deleteNotRequiredUUID(mssqlIdsUUIDS.clone() as HashSet<UUID>, psqlIds.clone() as HashSet<Any>, tableName);
             mssqlIdsUUIDS.removeAll(psqlIds)
             idsToInsert = mssqlIdsUUIDS.toMutableList()
         } else {
-            deleteNotRequiredLong(mssqlIds.clone() as HashSet<Any>, psqlIds.clone() as HashSet<Any>, tableName)
+//            deleteNotRequiredLong(mssqlIds.clone() as HashSet<Any>, psqlIds.clone() as HashSet<Any>, tableName)
             mssqlIds.removeAll(psqlIds)
             idsToInsert = mssqlIds.toMutableList()
         }
-        if (idsToInsert.size < 1) {
+        if (idsToInsert.isEmpty()) {
             return
         }
         var count = 0;
@@ -513,7 +514,7 @@ class SqlService(
     ) {
         try {
             psqlIds.removeAll(mssqlIds)
-            if(psqlIds.isEmpty()) return
+            if (psqlIds.isEmpty()) return
             var newTableName = tableName.removePrefix("tms.dbo.")
             var delete = "DELETE FROM ".plus(newTableName)
                     .plus(" WHERE id IN ")
@@ -535,7 +536,7 @@ class SqlService(
     ) {
         try {
             psqlIds.removeAll(mssqlIds)
-            if(psqlIds.isEmpty()) return
+            if (psqlIds.isEmpty()) return
             var newTableName = tableName.removePrefix("tms.dbo.")
             var delete = "DELETE FROM ".plus(newTableName)
                     .plus(" WHERE id IN ")
@@ -571,6 +572,7 @@ class SqlService(
                             .plus(" ORDER BY ID;")
                     var result = msqlJdbcTemplate.queryForList(selectPagination)
                     maxValue = result.get(result.size - 1).values.first()
+                    if(result.isEmpty()) return resultList
                     result.forEach { map ->
                         map.forEach {
                             resultList.add(it.value)
@@ -582,6 +584,7 @@ class SqlService(
                 } else {
                     var result = msqlJdbcTemplate.queryForList(selectPagination, maxValue)
                     maxValue = result.get(result.size - 1).values.first()
+                    if(result.isEmpty()) return resultList
                     result.forEach { map ->
                         map.forEach {
                             resultList.add(it.value)

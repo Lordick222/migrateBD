@@ -10,3 +10,10 @@ INSERT INTO tms_route_line_cache
 (id, route_id, latitude, longitude, index_)
 VALUES(?, ?, ?, ?, ?);
 -- end
+-- start
+SELECT ID, LATITUDE, LONGITUDE, VEHICLE_ID, DATE_
+FROM tms.dbo.TMS_VEHICLE_COORDINATES_HISTORY;
+INSERT INTO tms_vehicle_coordinates_history
+(id, latitude, longitude, vehicle_id, date_)
+VALUES(?, ?, ?, ?, ?);
+-- end

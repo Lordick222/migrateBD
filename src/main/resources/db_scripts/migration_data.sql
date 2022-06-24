@@ -582,13 +582,6 @@ INSERT INTO tms_vehicle_and_order_reason_cancel_history
 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- end
 -- start
-SELECT ID, LATITUDE, LONGITUDE, VEHICLE_ID, DATE_
-FROM tms.dbo.TMS_VEHICLE_COORDINATES_HISTORY;
-INSERT INTO tms_vehicle_coordinates_history
-(id, latitude, longitude, vehicle_id, date_)
-VALUES(?, ?, ?, ?, ?);
--- end
--- start
 SELECT ID, DATE_, LATITUDE_START, LONGITUDE_START, LATITUDE_FINISH, LONGITUDE_FINISH, DISTANCE, TIME_
 FROM tms.dbo.TMS_ROUTE_CACHE;
 INSERT INTO tms_route_cache

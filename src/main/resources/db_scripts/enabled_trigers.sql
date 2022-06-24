@@ -14,7 +14,7 @@ ALTER TABLE distr_vehicle_and_order_rate_per_km ENABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_rent ENABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_trailer_type ENABLE TRIGGER ALL;
 ALTER TABLE distr_vehicle_and_order_vehicle_task ENABLE TRIGGER ALL;
-ALTER TABLE distr_vehicle_free_integererval ENABLE TRIGGER ALL;
+ALTER TABLE distr_vehicle_free_interval ENABLE TRIGGER ALL;
 ALTER TABLE sec_constraint ENABLE TRIGGER ALL;
 ALTER TABLE sec_entity_log ENABLE TRIGGER ALL;
 ALTER TABLE sec_filter ENABLE TRIGGER ALL;
@@ -75,7 +75,6 @@ ALTER TABLE tms_fin_plan ENABLE TRIGGER ALL;
 ALTER TABLE tms_garage ENABLE TRIGGER ALL;
 ALTER TABLE tms_map_keys ENABLE TRIGGER ALL;
 ALTER TABLE tms_notification ENABLE TRIGGER ALL;
-ALTER TABLE tms_one_s_cancel_order_history ENABLE TRIGGER ALL;
 ALTER TABLE tms_one_s_order_history ENABLE TRIGGER ALL;
 ALTER TABLE tms_one_s_status_history ENABLE TRIGGER ALL;
 ALTER TABLE tms_order ENABLE TRIGGER ALL;
@@ -100,7 +99,6 @@ ALTER TABLE tms_region_lines ENABLE TRIGGER ALL;
 ALTER TABLE tms_region_sub_lines ENABLE TRIGGER ALL;
 ALTER TABLE tms_reservation_users ENABLE TRIGGER ALL;
 ALTER TABLE tms_route_cache ENABLE TRIGGER ALL;
-ALTER TABLE tms_route_line_cache ENABLE TRIGGER ALL;
 ALTER TABLE tms_scores ENABLE TRIGGER ALL;
 ALTER TABLE tms_task_place ENABLE TRIGGER ALL;
 ALTER TABLE tms_task_place_place ENABLE TRIGGER ALL;
@@ -109,7 +107,6 @@ ALTER TABLE tms_vehicle ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_and_order ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_and_order_reason_cancel_history ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_coordinates ENABLE TRIGGER ALL;
-ALTER TABLE tms_vehicle_coordinates_history ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_custom_column ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_customer_rent ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_customers ENABLE TRIGGER ALL;
@@ -127,3 +124,10 @@ ALTER TABLE tms_vehicle_task_type ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_tasks_places ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_type ENABLE TRIGGER ALL;
 ALTER TABLE tms_vehicle_work ENABLE TRIGGER ALL;
+
+
+-- ALTER TABLE tms_one_s_cancel_order_history ENABLE TRIGGER ALL;
+-- ALTER TABLE tms_route_line_cache ENABLE TRIGGER ALL;
+-- ALTER TABLE tms_vehicle_coordinates_history ENABLE TRIGGER ALL;
+
+
