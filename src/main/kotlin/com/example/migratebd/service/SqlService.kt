@@ -352,6 +352,7 @@ class SqlService(
         try {
             postgresJdbcTemplate.execute(insertSqlNew)
         } catch (e: Exception) {
+            e.printStackTrace()
             val msg = "Insert failure, sql:[$tableName] from limit: $limit afterMaxValue: $afterValue\n"
             errors.add(msg)
             logger.error(e) { msg }
@@ -449,6 +450,224 @@ class SqlService(
             return "TABLE: $tableName msqlCount: $countMsql psqlCount: $countPsql OK\n"
         } else {
             return "ERRROR: $tableName msqlCount: $countMsql psqlCount: $countPsql\n"
+        }
+    }
+
+    @Async
+    fun selectInsertWithDiff(
+            @Language("MySQL") selectSql: String,
+            @Language("PostgreSQL") insertSql: String,
+            test: Boolean = false,
+            listStartIds: MutableList<FromIdStartDro>?
+    ) {
+        val tableName = selectSql.substringAfter("FROM ").replace(";", "").trim()
+        if (listStartIds != null) {
+            var isUUId = false
+            var start = false
+            listStartIds.forEach {
+                if (it.tableName.equals(tableName, true)) {
+                    start = true
+                    isUUId = it.isUUID
+                }
+            }
+            if (start == false) return
+        }
+        var idsToInsert = mutableListOf<Any>()
+        var mssqlIds = selectByTopIdsMssql(tableName, selectSql, 100000)
+        val psqlIds = selectByTopIdsPssql(tableName, selectSql, 100000)
+        if (mssqlIds.isEmpty()) return
+        if (!"java.lang.Long".equals(mssqlIds.first().javaClass.name)) {
+            var mssqlIdsUUIDS = mssqlIds.map { UUID.fromString(it as String?) }.toHashSet()
+//            deleteNotRequiredUUID(mssqlIdsUUIDS.clone() as HashSet<UUID>, psqlIds.clone() as HashSet<Any>, tableName);
+            mssqlIdsUUIDS.removeAll(psqlIds)
+            idsToInsert = mssqlIdsUUIDS.toMutableList()
+        } else {
+//            deleteNotRequiredLong(mssqlIds.clone() as HashSet<Any>, psqlIds.clone() as HashSet<Any>, tableName)
+            mssqlIds.removeAll(psqlIds)
+            idsToInsert = mssqlIds.toMutableList()
+        }
+        if (idsToInsert.isEmpty()) {
+            return
+        }
+        var count = 0;
+        var size = 200
+        while (true) {
+            val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+            var mutableMap = selectByIds(tableName, selectSql, idsToInsert.subList(count, Math.min(idsToInsert.size, count + size)))
+            log.timeEnd = LocalDateTime.now()
+            val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+            generateInsetString(tableName, insertSql, mutableMap, -1, null)
+            logIns.timeEnd = LocalDateTime.now()
+            logTimeMapOneMigration.add(Pair(log, logIns))
+            if (mutableMap.size < size) break;
+            count += size
+        }
+        logger("For $tableName psqlIds[${psqlIds.size}], mssqlIds[${mssqlIds.size}]")
+        logger.info { "Finised selectInsertWithDiff: select[$selectSql], insert = [$insertSql]" }
+    }
+
+
+    fun deleteNotRequiredUUID(
+            mssqlIds: HashSet<UUID>,
+            psqlIds: HashSet<Any>,
+            tableName: String
+    ) {
+        try {
+            psqlIds.removeAll(mssqlIds)
+            if (psqlIds.isEmpty()) return
+            var newTableName = tableName.removePrefix("tms.dbo.")
+            var delete = "DELETE FROM ".plus(newTableName)
+                    .plus(" WHERE id IN ")
+                    .plus(psqlIds.joinToString(separator = "','", prefix = "('", postfix = "');"))
+            postgresJdbcTemplate.execute(delete)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val msg = "Delete failure $tableName"
+            errors.add(msg)
+            logger.error(e) { msg }
+        }
+        var a = 1;
+    }
+
+    fun deleteNotRequiredLong(
+            mssqlIds: HashSet<Any>,
+            psqlIds: HashSet<Any>,
+            tableName: String
+    ) {
+        try {
+            psqlIds.removeAll(mssqlIds)
+            if (psqlIds.isEmpty()) return
+            var newTableName = tableName.removePrefix("tms.dbo.")
+            var delete = "DELETE FROM ".plus(newTableName)
+                    .plus(" WHERE id IN ")
+                    .plus(psqlIds.joinToString(separator = ",", prefix = "(", postfix = ");"))
+            postgresJdbcTemplate.execute(delete)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val msg = "Delete failure $tableName"
+            errors.add(msg)
+            logger.error(e) { msg }
+        }
+        var a = 1;
+    }
+
+    fun selectByTopIdsMssql(
+            tableName: String,
+            selectSql: String,
+            limit: Int = 20000
+    ): HashSet<Any> {
+        try {
+            var selectPagination = selectSql
+            val stringToReplace = selectPagination.substringAfter("SELECT ").substringBefore(" FROM")
+            selectPagination = selectPagination.replace(stringToReplace, " ID ")
+            var maxValue: Any? = null
+            var flag = true
+            var resultList = kotlin.collections.HashSet<Any>()
+            while (flag) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                if (maxValue == null) {
+                    selectPagination = selectPagination
+                            .replace(";", "")
+                            .replace("SELECT", "SELECT TOP($limit)")
+                            .plus(" ORDER BY ID;")
+                    var result = msqlJdbcTemplate.queryForList(selectPagination)
+                    maxValue = result.get(result.size - 1).values.first()
+                    if(result.isEmpty()) return resultList
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                    selectPagination = selectPagination
+                            .replace("ORDER BY ID", " WHERE ID > ? ORDER BY ID ")
+                } else {
+                    var result = msqlJdbcTemplate.queryForList(selectPagination, maxValue)
+                    maxValue = result.get(result.size - 1).values.first()
+                    if(result.isEmpty()) return resultList
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                }
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
+            }
+            return resultList
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return kotlin.collections.HashSet<Any>()
+        }
+    }
+
+    fun selectByTopIdsPssql(
+            tableName: String,
+            selectSql: String,
+            limit: Int
+    ): HashSet<Any> {
+        try {
+            var selectPagination = selectSql.replace("tms.dbo.", " ")
+            val stringToReplace = selectPagination.substringAfter("SELECT ").substringBefore(" FROM")
+            selectPagination = selectPagination.replace(stringToReplace, " ID ")
+            var maxValue: Any? = null
+            var flag = true
+            var resultList = kotlin.collections.HashSet<Any>()
+            while (flag) {
+                val log = LogTime("Select $tableName", LocalDateTime.now(), null)
+                if (maxValue == null) {
+                    selectPagination = selectPagination
+                            .replace(";", "")
+                            .plus(" ORDER BY ID LIMIT($limit);")
+                    var result = postgresJdbcTemplate.queryForList(selectPagination)
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                    selectPagination = selectPagination
+                            .replace("ORDER BY ID", " WHERE ID > ? ORDER BY ID ")
+                } else {
+                    var result = postgresJdbcTemplate.queryForList(selectPagination, maxValue)
+                    if (result.isEmpty()) return resultList
+                    maxValue = result.get(result.size - 1).values.first()
+                    result.forEach { map ->
+                        map.forEach {
+                            resultList.add(it.value)
+                        }
+                    }
+                    if (result.size < limit) flag = false
+                }
+                log.timeEnd = LocalDateTime.now()
+                val logIns = LogTime("Insert $tableName", LocalDateTime.now(), null)
+                logIns.timeEnd = LocalDateTime.now()
+                logTimeMapOneMigration.add(Pair(log, logIns))
+            }
+            return resultList
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return kotlin.collections.HashSet<Any>()
+        }
+    }
+
+    fun selectByIds(
+            tableName: String,
+            selectSql: String,
+            listIds: kotlin.collections.List<Any>
+    ): MutableList<MutableMap<String, Any?>> {
+        try {
+            var idsString = listIds.joinToString("','", "'", "'")
+            var selectPagination = selectSql
+                    .replace(";", "")
+                    .plus(" WHERE ID IN ($idsString);")
+            return msqlJdbcTemplate.queryForList(selectPagination)
+        } catch (e: Exception) {
+            return mutableListOf()
         }
     }
 }

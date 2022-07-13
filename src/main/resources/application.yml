@@ -1,4 +1,4 @@
-server.port: 9091
+server.port: 9093
 
 server:
   error:
@@ -8,14 +8,14 @@ server:
 spring:
   datasource:
     postgres:
-      url: jdbc:postgresql://10.6.0.13:5432/dev-app
-      username: dev-app
-      password: G10hrWmCYYNy98
+      url: jdbc:postgresql://10.6.1.15:5432/tms
+      username: tms
+      password: ZCpkGuEzRhLKEGdmLNFIOdbT
       driverClassName: org.postgresql.Driver
     msql:
-      url: jdbc:sqlserver://10.4.1.11:1433;database=test_tms_LabIT
-      username: test_tms_LabIT
-      password: test_tms_LabIT
+      url: jdbc:sqlserver://192.168.0.129:1433;database=tms
+      username: devops
+      password: devops
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
     hikari:
       maximum-pool-size: 10

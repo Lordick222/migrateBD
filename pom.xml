@@ -164,7 +164,7 @@
                 <version>3.2.1</version>
                 <configuration>
                     <to>
-                        <image>migarate-bd</image>
+                        <image>migarate-bd-test-new</image>
                     </to>
                 </configuration>
             </plugin>
